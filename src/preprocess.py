@@ -17,6 +17,7 @@ def preprocess_df(data, audio_dir):
             processed_data = np.vstack((processed_data, preprocess(full_path)))
         else:
             processed_data = preprocess(full_path)
+    return processed_data
 
 def preprocess_fold(fld, data, audio_dir):
     f_df = data[data['fold'] == fld]

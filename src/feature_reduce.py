@@ -1,6 +1,6 @@
 from sklearn.decomposition import PCA, FastICA, LatentDirichletAllocation
 
-def decompose(kind='PCA', n_components, X, y=None):
+def decompose(n_components, X, y=None, kind='PCA'):
     _decomp = None
     if kind == 'PCA':
         _decomp = PCA(n_components=n_components, y=y)
