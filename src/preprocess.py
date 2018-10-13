@@ -2,6 +2,7 @@ import pandas as pd
 import librosa
 import numpy as np
 import multiprocessing as mp
+import time
 
 def preprocess(path):
     y, sr = librosa.load(path)
@@ -31,6 +32,7 @@ def preprocess_df_parallel(data, audio_dir):
     return np.vstack(p.map(preprocess, audio_dir + data['filename']))
 
 def preprocess_fold(fld, data, audio_dir, parallel=False):
+    
     f_df = data[data['fold'] == fld]
     if parallel:
         return preprocess_df_parallel(f_df, audio_dir)
