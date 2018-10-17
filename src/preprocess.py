@@ -14,6 +14,8 @@ def preprocess(path):
     delta = librosa.feature.delta(mfccs)
     # Get second derivative of mfccs
     delta_2 = librosa.feature.delta(mfccs, order=2)
+    del y
+    del sr
     return np.vstack((mfccs[1:], delta, delta_2)).transpose()
 
 def preprocess_df(data, audio_dir):
@@ -27,7 +29,6 @@ def preprocess_df(data, audio_dir):
     return processed_data
 
 def preprocess_df_parallel(data, audio_dir):
-    processed_data = np.array([])
     p = mp.Pool(mp.cpu_count())
     return np.vstack(p.map(preprocess, audio_dir + data['filename']))
 
