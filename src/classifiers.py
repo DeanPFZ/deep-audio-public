@@ -27,8 +27,14 @@ def gpu_train(kind, n_components, train_X, train_y = None):
     if kind == 'gmm':
         gpuGMM.init(max_ones=train_X.nbytes)
         clas = gpuGMM.GMM(n_components=n_components, n_dimensions=train_X.shape[1])
-        clas.fit(X=train_X)
+        clas.fit(X=train_X, n_init=5)
         gpuGMM.shutdown()
         return clas
     else:
         pass
+    
+def gpu_init(max_ones=(1024*256)):
+    gpuGMM.init(max_ones=max_ones)
+    
+def gpu_shutdown():
+    gpuGMM.shutdown()
