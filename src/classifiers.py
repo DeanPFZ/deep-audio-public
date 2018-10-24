@@ -2,6 +2,7 @@ from sklearn.mixture import GaussianMixture
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
+import tensorflow as tf
 import tensorflow.contrib.learn as skflow
 
 def cpu_train(kind, n_components, train_X, train_y = None):
@@ -19,11 +20,18 @@ def cpu_train(kind, n_components, train_X, train_y = None):
     clas.fit(X=train_X, y=train_y)
     return clas
 
+def train_input_fn(features, labels, batch_size):
+    """An input function for training"""
+    dataset = tf.data.Dataset.from_tensor_slices((dict(features), labels))
+    dataset = dataset.shuffle(10).repeat().batch(batch_size)
+
 def gpu_train(kind, n_components, train_X, train_y = None):
     clas = None
     if kind == 'dnn':
-        clas = skflow.TensorFlowDNNClassifier(hidden_units=[10,20,10], n_classes=n_components)
-        clas.fit(train_X, train_Y)
+        feature_columns = [tf.contrib.layers.real_valued_column("", dimension=train_X.shape[0])]
+        clas = skflow.DNNClassifier(hidden_units=[10,20,10], n_classes=n_components, feature_columns=feature_columns)
+        train_steps=1000
+        clas.fit(train_X, train_y, steps=train_steps)
         return clas
     else:
         pass
