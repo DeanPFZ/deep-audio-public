@@ -1,4 +1,3 @@
-import ggmm.gpu as gpuGMM
 from sklearn.mixture import GaussianMixture
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.ensemble import RandomForestClassifier
@@ -22,21 +21,9 @@ def cpu_train(kind, n_components, train_X, train_y = None):
 
 def gpu_train(kind, n_components, train_X, train_y = None):
     clas = None
-    if kind == 'gmm':
-        gpuGMM.init(max_ones=train_X.nbytes)
-        clas = gpuGMM.GMM(n_components=n_components, n_dimensions=train_X.shape[1])
-        clas.fit(X=train_X, n_init=5)
-        gpuGMM.shutdown()
-        return clas
-    elif kind == 'dnn':
+    if kind == 'dnn':
         clas = skflow.TensorFlowDNNClassifier(hidden_units=[10,20,10], n_classes=n_components)
         clas.fit(train_X, train_Y)
         return clas
     else:
         pass
-    
-def gpu_init(max_ones=(1024*256)):
-    gpuGMM.init(max_ones=max_ones)
-    
-def gpu_shutdown():
-    gpuGMM.shutdown()
