@@ -3,6 +3,7 @@ from sklearn.mixture import GaussianMixture
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
+import tensorflow.contrib.learn as skflow
 
 def cpu_train(kind, n_components, train_X, train_y = None):
     clas = None
@@ -26,6 +27,10 @@ def gpu_train(kind, n_components, train_X, train_y = None):
         clas = gpuGMM.GMM(n_components=n_components, n_dimensions=train_X.shape[1])
         clas.fit(X=train_X, n_init=5)
         gpuGMM.shutdown()
+        return clas
+    elif kind == 'dnn':
+        clas = skflow.TensorFlowDNNClassifier(hidden_units=[10,20,10], n_classes=n_components)
+        clas.fit(train_X, train_Y)
         return clas
     else:
         pass

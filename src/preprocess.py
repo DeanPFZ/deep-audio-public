@@ -26,22 +26,26 @@ class Audio_Processor:
         return np.vstack((mfccs[1:], delta, delta_2)).transpose()
 
     def preprocess_df(self, data):
-        processed_data = np.array([])
-        for file in data['filename']:
-            if(processed_data.size):
-                processed_data = np.vstack((processed_data, preprocess(file)))
-            else:
-                processed_data = preprocess(file)
-        return processed_data
+        dfs = []
+        for index, sample in data.iterrows():
+            tmp = pd.DataFrame(self.preprocess(sample.filename))
+            tmp['category'] = sample.category
+            dfs.append(tmp)
+        df = pd.concat(dfs, ignore_index=True)
+        return df
 
     def preprocess_df_parallel(self, data):
         p = mp.Pool(mp.cpu_count())
-        return np.vstack(p.map(preprocess, data['filename']))
+        df = pd.DataFrame()
+        for category in data.category.unique():
+            tmp = pd.DataFrame(np.vstack(p.map(self.preprocess, data['filename'])))
+            tmp['category'] = category
+            df.append(tmp, ignore_index=True)
+        return df
 
     def preprocess_fold(self, fld, data, parallel=False):
-
         f_df = data[data['fold'] == fld]
         if parallel:
-            return preprocess_df_parallel(f_df, audio_dir)
+            return self.preprocess_df_parallel(f_df)
         else:
-            return preprocess_df(f_df, audio_dir)
+            return self.preprocess_df(f_df)
