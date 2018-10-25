@@ -29,9 +29,10 @@ def gpu_train(kind, n_components, train_X, train_y = None):
     clas = None
     if kind == 'dnn':
         feature_columns = [tf.contrib.layers.real_valued_column("", dimension=train_X.shape[0])]
-        clas = skflow.DNNClassifier(hidden_units=[10,20,10], n_classes=n_components, feature_columns=feature_columns)
+        clas = skflow.DNNClassifier(hidden_units=[128,64,32], n_classes=n_components, feature_columns=feature_columns)
         train_steps=1000
-        clas.fit(train_X, train_y, steps=train_steps)
+        batch=1000
+        clas.fit(train_X, train_y, batch_size=batch, steps=train_steps)
         return clas
     else:
         pass

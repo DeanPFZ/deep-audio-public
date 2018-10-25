@@ -52,7 +52,7 @@ def normalize_data(df, target, scalar=None):
         scaler = preprocessing.StandardScaler()
         scaler.fit(df.loc[:, df.columns != target])
     df.loc[:,df.columns != target] = scaler.transform(df.loc[:,df.columns != target])
-    return df
+    return df, scalar
 
 # Tensorflow specific utilities
 
