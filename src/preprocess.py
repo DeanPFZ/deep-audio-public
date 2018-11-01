@@ -3,6 +3,15 @@ import librosa
 import numpy as np
 import multiprocessing as mp
 import time
+import pickle
+
+def save_obj(obj, name ):
+    with open('../preprocessed_objs/'+ name + '.pkl', 'wb') as f:
+        pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
+
+def load_obj(name):
+    with open('../preprocessed_objs/' + name + '.pkl', 'rb') as f:
+        return pickle.load(f)
 
 class Audio_Processor:
    
@@ -25,35 +34,15 @@ class Audio_Processor:
 
         
     def preprocess(self, file):
-#         feature_data = []
-#         # Read file for librosa
-#         data, sample_rate = librosa.load(self.audio_dir + file)
-
-#         # Trim data more than already done
-#         trimmed_data, _ = librosa.effects.trim(y=data)
-
-#         # Get Mel Spectrogram
-#         S = librosa.feature.melspectrogram(y=trimmed_data, sr=sample_rate, n_fft=512, hop_length=8, fmax=8000)
-
-#         # Get mfcc features
-#         mfccs = librosa.feature.mfcc(S=librosa.power_to_db(S), n_mfcc=13)
-
-#         attribs = self.std_dev_mean_noise(mfccs[1:])
-# #         print(attribs)
-#         feature_data = np.hstack(attribs)
-        
-#         return feature_data
-
         y, sr = librosa.load(self.audio_dir + file)
         # Trim silence from signal
         y, _ = librosa.effects.trim(y)
         # Calculate the first 13 mfcc's
-        mfccs = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13, hop_length=8, n_fft=4096)
+        mfccs = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
         # Get first derivative of the mfccs
         delta = librosa.feature.delta(mfccs)
         # Get second derivative of mfccs
         delta_2 = librosa.feature.delta(mfccs, order=2)
-        # Get rid of zero vectors
         return np.vstack((mfccs[1:], delta, delta_2)).transpose()
 
     def preprocess_df(self, data):
@@ -73,9 +62,21 @@ class Audio_Processor:
             df.append(tmp, ignore_index=True)
         return df
 
-    def preprocess_fold(self, fld, data, parallel=False):
+    def _process_fold(self, fld, data, parallel=False):
         f_df = data[data['fold'] == fld]
         if parallel:
             return self.preprocess_df_parallel(f_df)
         else:
             return self.preprocess_df(f_df)
+        
+        
+    def preprocess_fold(self, fld, data, kind='mfcc', parallel=False):
+        try:
+            df = load_obj('fold_' + str(kind) + '_' + str(fld))
+        except IOError:
+            start_time = time.time()
+            df = self._process_fold(fld, data, parallel)
+            print("\tBytes: " + str(df.memory_usage(index=True).sum()))
+            print("\tProcessing Time: " + str(time.time() - start_time))
+            save_obj(df, 'fold_' + str(kind) + '_' + str(fld))
+        return df
