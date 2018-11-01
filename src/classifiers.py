@@ -2,6 +2,7 @@ from sklearn.mixture import BayesianGaussianMixture
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
+from sklearn.neural_network import MLPClassifier
 from sklearn.base import clone
 import tensorflow as tf
 import tensorflow.contrib.learn as skflow
@@ -18,6 +19,8 @@ def cpu_train(kind, n_components, train_X, train_y = None):
         clas = RandomForestClassifier(n_estimators=n_components)
     elif kind == 'svm':
         clas = SVC(C=0.1)
+    elif kind == 'snn':
+        clas = MLPClassifier(hidden_layer_sizes=(12, 12, 12))
     else:
         pass
     clas.fit(X=train_X, y=train_y)
@@ -34,16 +37,16 @@ def train_input_fn(features, labels, batch_size):
     dataset = tf.data.Dataset.from_tensor_slices((dict(features), labels))
     dataset = dataset.shuffle(10).repeat().batch(batch_size)
 
-def gpu_train(kind, n_components, train_X, train_y = None):
+def gpu_train(kind, n_components, train_X, train_y = None, train_steps=1000, batch=None):
     clas = None
     start_time = time.time()
+    feature_columns = [tf.contrib.layers.real_valued_column("", dimension=train_X.shape[0])]
     if kind == 'dnn':
-        feature_columns = [tf.contrib.layers.real_valued_column("", dimension=train_X.shape[0])]
         clas = skflow.DNNClassifier(hidden_units=[128,64,32], n_classes=n_components, feature_columns=feature_columns)
-        train_steps=1000
-        batch=1000
-        clas.fit(train_X, train_y, batch_size=batch, steps=train_steps)
+    if kind == 'snn':
+        clas = skflow.DNNClassifier(hidden_units=[12,12,12], n_classes=n_components, feature_columns=feature_columns)
     else:
         pass
+    clas.fit(train_X, train_y, batch_size=batch, steps=train_steps)
     print("\tProcessing Time: " + str(time.time() - start_time))
     return clas

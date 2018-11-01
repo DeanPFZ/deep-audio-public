@@ -4,8 +4,6 @@ import numpy as np
 import multiprocessing as mp
 import time
 
-col_lables = ['MFCC_1', 'MFCC_2', 'MFCC_3', 'MFCC_4', 'MFCC_5', 'MFCC_6', 'MFCC_7', 'MFCC_8', 'MFCC_9', 'MFCC_10', 'MFCC_11', 'MFCC_12', 'MFCCp_0', 'MFCCp_1', 'MFCCp_2', 'MFCCp_3', 'MFCCp_4', 'MFCCp_5', 'MFCCp_6', 'MFCCp_7', 'MFCCp_8', 'MFCCp_9', 'MFCCp_10', 'MFCCp_11', 'MFCCp_12', 'MFCCp2_0', 'MFCCp2_1', 'MFCCp2_2', 'MFCCp2_3', 'MFCCp2_4', 'MFCCp2_5', 'MFCCp2_6', 'MFCCp2_7', 'MFCCp2_8', 'MFCCp2_9', 'MFCCp2_10', 'MFCCp2_11', 'MFCCp2_12', 'category']
-
 class Audio_Processor:
    
     def __init__(self, path):
@@ -14,36 +12,64 @@ class Audio_Processor:
     def set_audio_dir(self, path):
         self.audio_dir = path
 
+    # Returns the standard deviation of the data, the mean of the data, and the noise calculated from mean and stddev
+    def std_dev_mean_noise(self, data):
+        # Standard deviation of data
+        stddev = np.std(data, axis=1)
+
+        mean = np.mean(data, axis=1)
+
+        sig_noise = mean / stddev
+
+        return stddev, mean, sig_noise
+
+        
     def preprocess(self, file):
+#         feature_data = []
+#         # Read file for librosa
+#         data, sample_rate = librosa.load(self.audio_dir + file)
+
+#         # Trim data more than already done
+#         trimmed_data, _ = librosa.effects.trim(y=data)
+
+#         # Get Mel Spectrogram
+#         S = librosa.feature.melspectrogram(y=trimmed_data, sr=sample_rate, n_fft=512, hop_length=8, fmax=8000)
+
+#         # Get mfcc features
+#         mfccs = librosa.feature.mfcc(S=librosa.power_to_db(S), n_mfcc=13)
+
+#         attribs = self.std_dev_mean_noise(mfccs[1:])
+# #         print(attribs)
+#         feature_data = np.hstack(attribs)
+        
+#         return feature_data
+
         y, sr = librosa.load(self.audio_dir + file)
         # Trim silence from signal
         y, _ = librosa.effects.trim(y)
         # Calculate the first 13 mfcc's
-        mfccs = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
+        mfccs = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13, hop_length=8, n_fft=4096)
         # Get first derivative of the mfccs
         delta = librosa.feature.delta(mfccs)
         # Get second derivative of mfccs
         delta_2 = librosa.feature.delta(mfccs, order=2)
-        del y
-        del sr
+        # Get rid of zero vectors
         return np.vstack((mfccs[1:], delta, delta_2)).transpose()
 
     def preprocess_df(self, data):
         dfs = []
         for index, sample in data.iterrows():
             tmp = pd.DataFrame(self.preprocess(sample.filename))
-            tmp['category'] = sample.category
+            tmp['target'] = sample['target']
             dfs.append(tmp)
-        df = pd.concat(dfs, ignore_index=True)
-        df.columns = col_lables
-        return df
+        return pd.concat(dfs)
 
     def preprocess_df_parallel(self, data):
         p = mp.Pool(mp.cpu_count())
         df = pd.DataFrame()
-        for category in data.category.unique():
+        for target in data.target.unique():
             tmp = pd.DataFrame(np.vstack(p.map(self.preprocess, data['filename'])))
-            tmp['category'] = category
+            tmp['target'] = target
             df.append(tmp, ignore_index=True)
         return df
 
