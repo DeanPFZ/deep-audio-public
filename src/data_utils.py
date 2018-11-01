@@ -54,21 +54,19 @@ def normalize_data(df, target, scalar=None):
     df.loc[:,df.columns != target] = scaler.transform(df.loc[:,df.columns != target])
     return df, scalar
 
-# Tensorflow specific utilities
-
-
-
-def eval_input_fn(features, labels, batch_size):
-    """An input function for evaluation or prediction"""
-    features=dict(features)
-    if labels is None:
-        inputs = features
-    else:
-        inputs = (features, labels)
-
-    dataset = tf.data.Dataset.from_tensor_slices(inputs)
-
-    assert batch_size is not None, "batch_size cannot be None"
-    dataset = dataset.batch(batch_size)
-
-    return dataset
+# Supersample of data with equal distribution
+def balanced_supersample(x,y):
+    y_out = pd.DataFrame(y.values)
+    x_out = pd.DataFrame(x.values)
+    counts = y.value_counts()
+    counts -= counts.iloc[0]
+    for item in counts.iteritems():
+        if item[1] == 0:
+            continue
+        else:
+            samples = y[y == item[0]].sample(-1 * item[1], replace=True)
+            y_out = pd.concat([y_out, samples], ignore_index=True)
+            x_out = pd.concat([x_out, x.loc[samples.index]], ignore_index=True)
+    return x_out, y_out
+    
+    
