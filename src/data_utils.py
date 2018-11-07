@@ -69,4 +69,19 @@ def balanced_supersample(x,y):
             x_out = pd.concat([x_out, x.loc[samples.index]], ignore_index=True)
     return x_out, y_out
     
-    
+# Subsample of data with equal distribution
+def balanced_subsample(x,y):
+    y_out = pd.DataFrame()
+    x_out = pd.DataFrame()
+    counts = y.value_counts(ascending=True)
+    min_count = counts.iloc[0]
+    for item in counts.iteritems():
+        if item[1] == min_count:
+            y_out = pd.concat([y_out, y[y == item[0]]])
+            x_out = pd.concat([x_out, x.loc[y_out.index]], ignore_index=True)
+        else:
+            samples = y[y == item[0]].sample(min_count)
+            y_out = pd.concat([y_out, samples], ignore_index=True)
+            x_out = pd.concat([x_out, x.loc[samples.index]], ignore_index=True)
+    return x_out, y_out
+            
