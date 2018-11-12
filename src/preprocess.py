@@ -31,7 +31,6 @@ class Audio_Processor:
         sig_noise = mean / stddev
 
         return stddev, mean, sig_noise
-
         
     def preprocess(self, file):
         y, sr = librosa.load(self.audio_dir + file)
@@ -44,16 +43,31 @@ class Audio_Processor:
         # Get second derivative of mfccs
         delta_2 = librosa.feature.delta(mfccs, order=2)
         return np.vstack((mfccs[1:], delta, delta_2)).transpose()
+    
+    def load_all_audio(self, fld, data):
+        start_time = time.time()
+        f_df = data[data['fold'] == fld]
+        f_df['y'] = None
+        for i, sample in f_df.iterrows():
+            y, sr = librosa.load(self.audio_dir + sample['filename'], sr=44100, mono=True)
+#             print(y.shape)
+#             y, _ = librosa.effects.trim(y)
+            f_df.at[i, 'y'] = (1,y)
+        print("\tProcessing Time: " + str(time.time() - start_time))
+        return f_df[['target', 'h_category', 'y']]
 
-    def preprocess_df(self, data):
+    def preprocess_df(self, data, kind='mfcc'):
         dfs = []
         for index, sample in data.iterrows():
-            tmp = pd.DataFrame(self.preprocess(sample.filename))
+            if kind == 'mfcc':
+                tmp = pd.DataFrame(self.preprocess(sample.filename))
+#             elif kind == 'wavenet':
+#                 tmp = pd.DataFrame(self.preprocess(sample.filename))                
             tmp['target'] = sample['target']
             dfs.append(tmp)
         return pd.concat(dfs)
 
-    def preprocess_df_parallel(self, data):
+    def preprocess_df_parallel(self, data, kind='mfcc'):
         p = mp.Pool(mp.cpu_count())
         df = pd.DataFrame()
         for target in data.target.unique():
@@ -62,12 +76,12 @@ class Audio_Processor:
             df.append(tmp, ignore_index=True)
         return df
 
-    def _process_fold(self, fld, data, parallel=False):
+    def _process_fold(self, fld, data, kind='mfcc', parallel=False):
         f_df = data[data['fold'] == fld]
         if parallel:
-            return self.preprocess_df_parallel(f_df)
+            return self.preprocess_df_parallel(f_df, kind)
         else:
-            return self.preprocess_df(f_df)
+            return self.preprocess_df(f_df, kind)
         
         
     def preprocess_fold(self, fld, data, kind='mfcc', parallel=False):
@@ -75,7 +89,7 @@ class Audio_Processor:
             df = load_obj('fold_' + str(kind) + '_' + str(fld))
         except IOError:
             start_time = time.time()
-            df = self._process_fold(fld, data, parallel)
+            df = self._process_fold(fld, data, kind, parallel)
             print("\tBytes: " + str(df.memory_usage(index=True).sum()))
             print("\tProcessing Time: " + str(time.time() - start_time))
             save_obj(df, 'fold_' + str(kind) + '_' + str(fld))
