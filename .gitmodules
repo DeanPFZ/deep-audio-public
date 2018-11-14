@@ -4,3 +4,6 @@
 [submodule "src/cbar"]
 	path = src/cbar
 	url = git@github.com:georgia-tech-db/cbar.git
+[submodule "src/keras-mdn-layer"]
+	path = src/keras-mdn-layer
+	url = git@github.com:cpmpercussion/keras-mdn-layer.git
