@@ -104,3 +104,6 @@ venv.bak/
 .mypy_cache/
 
 *.pkl
+src/mdn
+src/wavenet-ckpt*
+src/._wavenet-ckpt
