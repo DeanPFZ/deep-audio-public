@@ -1,9 +1,21 @@
 import pandas as pd
-import librosa
+from librosa import display, feature
 import numpy as np
 import multiprocessing as mp
 import time
 import pickle
+import soundfile as sf
+
+#Relevant Keras/Kapre includes
+import keras
+import kapre
+from keras.models import Sequential
+from kapre.time_frequency import Melspectrogram, Spectrogram
+from kapre.filterbank import Filterbank
+
+# Relevant Wavenet includes
+from magenta.models.nsynth import utils
+from magenta.models.nsynth.wavenet import fastgen
 
 def save_obj(obj, name ):
     with open('../preprocessed_objs/'+ name + '.pkl', 'wb') as f:
@@ -12,17 +24,72 @@ def save_obj(obj, name ):
 def load_obj(name):
     with open('../preprocessed_objs/' + name + '.pkl', 'rb') as f:
         return pickle.load(f)
-
+    
 class Audio_Processor:
    
-    def __init__(self, path):
+    def __init__(self, path, input_shape, sr=44100):
         self.audio_dir = path
-
+        self.sr = sr        
+        
     def set_audio_dir(self, path):
         self.audio_dir = path
+        
+    def set_audio_sample_rate(self, sr):
+        self.sr = sr
 
+    def __mel_spec_model(self, input_shape, n_mels, power_melgram, decibel_gram):
+        model = Sequential()
+        model.add(Melspectrogram(
+            sr=self.sr,
+            n_mels=n_mels,
+            power_melgram=power_melgram,
+            return_decibel_melgram = decibel_gram,
+            input_shape=input_shape,
+            trainable_fb=False
+        ))
+        return model
+        
+    def __spec_model(self, input_shape, decibel_gram):
+        model = Sequential()
+        model.add(Spectrogram(
+            return_decibel_spectrogram = decibel_gram,
+            input_shape=input_shape
+        ))
+        return model
+        
+    def __check_model(self, model):
+        model.summary(line_length=80, positions=[.33, .65, .8, 1.])
+
+        batch_input_shape = (2,) + model.input_shape[1:]
+        batch_output_shape = (2,) + model.output_shape[1:]
+        model.compile('sgd', 'mse')
+        model.fit(np.random.uniform(size=batch_input_shape), np.random.uniform(size=batch_output_shape), epochs=1)
+
+    def __visualise_model(self, model, src, logam=False):
+        n_ch, nsp_src = model.input_shape[1:]
+        print(src.shape)
+        src = src[:nsp_src]
+        src_batch = src[np.newaxis, :]
+        pred = model.predict(x=src_batch)
+        if keras.backend.image_data_format == 'channels_first':
+            result = pred[0, 0]
+        else:
+            result = pred[0, :, :, 0]
+        display.specshow(result, y_axis='linear', fmin=800, fmax=8000, sr=self.sr)
+        plt.show()
+
+    def __evaluate_model(self, model, c_data):
+        pred = model.predict(x=c_data)
+        if keras.backend.image_data_format == 'channels_first':
+            result = pred[0, 0]
+        else:
+            result = pred[:, :, :, 0]
+#         result = np.swapaxes(result, 1, 2)
+#         print(result.shape)
+        return result
+        
     # Returns the standard deviation of the data, the mean of the data, and the noise calculated from mean and stddev
-    def std_dev_mean_noise(self, data):
+    def __std_dev_mean_noise(self, data):
         # Standard deviation of data
         stddev = np.std(data, axis=1)
 
@@ -31,52 +98,115 @@ class Audio_Processor:
         sig_noise = mean / stddev
 
         return stddev, mean, sig_noise
-        
-    def preprocess(self, file):
-        y, sr = librosa.load(self.audio_dir + file)
-        # Trim silence from signal
-        y, _ = librosa.effects.trim(y)
+    
+    def __wavenet_encode(file_path):
+
+        # Load the model weights.
+        checkpoint_path = './wavenet-ckpt/model.ckpt-200000'
+
+        # Load and downsample the audio.
+        neural_sample_rate = 16000
+        audio = utils.load_audio(self.audio_dir + file_path, 
+                                 sample_length=400000, 
+                                 sr=neural_sample_rate)
+
+        # Pass the audio through the first half of the autoencoder,
+        # to get a list of latent variables that describe the sound.
+        # Note that it would be quicker to pass a batch of audio
+        # to fastgen. 
+        encoding = fastgen.encode(audio, checkpoint_path, len(audio))
+
+        # Reshape to a single sound.
+        return encoding.reshape((-1, 16))
+    
+    def __mfcc_encode(self, mel_spec, spec):
         # Calculate the first 13 mfcc's
-        mfccs = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
+        mfccs = feature.mfcc(S=mel_spec, n_mfcc=13)
         # Get first derivative of the mfccs
-        delta = librosa.feature.delta(mfccs)
+        delta = feature.delta(mfccs)
         # Get second derivative of mfccs
-        delta_2 = librosa.feature.delta(mfccs, order=2)
+        delta_2 = feature.delta(mfccs, order=2)
         return np.vstack((mfccs[1:], delta, delta_2)).transpose()
     
-    def load_all_audio(self, fld, data):
+    def __load_audio(data, fld=None, blocksize=None, overlap=None, debug=False):
         start_time = time.time()
-        f_df = data[data['fold'] == fld]
-        f_df['y'] = None
+        
+        # Load fold data or all data
+        if fld:
+            f_df = data[data['fold'] == fld]
+        else:
+            f_df = data
+        items = []
+        h_cat = []
+        cat = []
         for i, sample in f_df.iterrows():
-            y, sr = librosa.load(self.audio_dir + sample['filename'], sr=44100, mono=True)
-#             print(y.shape)
-#             y, _ = librosa.effects.trim(y)
-            f_df.at[i, 'y'] = (1,y)
-        print("\tProcessing Time: " + str(time.time() - start_time))
-        return f_df[['target', 'h_category', 'y']]
+            # Check if blocksize is set, if not load entire file
+            if blocksize:
+                # Create iterable object to pull in audio samples
+                blockgen = sf.blocks(self.audio_dir + sample.filename, 
+                                     blocksize=blocksize, 
+                                     overlap=overlap, 
+                                     always_2d=True, 
+                                     samplerate=self.sr,
+                                     fill_value=0.0)
+                # Iterate over blocks, adding pertinent information for training
+                for bl in blockgen:
+                    # Ignore blocks that are silent
+                    if not np.any(bl):
+                        continue
+                    y = bl.transpose()
+                    y = y[:int(blocksize)]
+                    y = y[np.newaxis, :]
+                    items.append(y)
+                    h_cat.append(sample.h_category)
+                    cat.append(sample.target)
+            # If not given, load entire audio document
+            else:
+                y, sr = sf.read(self.audio_dir + sample.filename, 
+                                fill_value=0.0,
+                                samplerate=self.sr)
+                y = y.transpose()
+                y = y[np.newaxis, :]
+                items.append(y)
+                h_cat.append(sample.h_category)
+                cat.append(sample.target)
+                
+        return np.vstack(items), np.array(h_cat), np.array(cat)
 
-    def preprocess_df(self, data, kind='mfcc'):
+    
+    def preprocess_df(self, data, 
+                      kind='mfcc',
+                      fld=None,
+                      blocksize=None,
+                      overlap=None,
+                      n_mels=128,
+                      power_melgram=2.0,
+                      decibel_gram=True
+                     ):
         dfs = []
         for index, sample in data.iterrows():
+            loaded_tuple = self.__load_audio(data, fld, blocksize, overlap)
             if kind == 'mfcc':
-                tmp = pd.DataFrame(self.preprocess(sample.filename))
-#             elif kind == 'wavenet':
-#                 tmp = pd.DataFrame(self.preprocess(sample.filename))                
-            tmp['target'] = sample['target']
-            dfs.append(tmp)
+                # TODO: More intelligently choose input shape (blocksize may be None)
+                input_shape=(1,blocksize)
+                # Generate keras network to get melgram
+                mfcc_model = self.__mel_spec_model(input_shape, n_mels, power_melgram, decibel_gram)
+                self.__check_model(mfcc_model)
+                # Generate keras network to get spectrogram
+                spec_model = self.__spec_model(input_shape, decibel_gram)
+                self.__check_model(spec_model)
+                
+                # Calculate melgram
+                melgram = self.__evaluate_model(mfcc_model, loaded_tuple[0])
+                # Calculate spectrogram
+                specgram = self.__evaluate_model(spec_model, loaded_tuple[0])
+            else:
+                
+            for audio_clip in loaded_tuple[0]:
+                
         return pd.concat(dfs)
 
-    def preprocess_df_parallel(self, data, kind='mfcc'):
-        p = mp.Pool(mp.cpu_count())
-        df = pd.DataFrame()
-        for target in data.target.unique():
-            tmp = pd.DataFrame(np.vstack(p.map(self.preprocess, data['filename'])))
-            tmp['target'] = target
-            df.append(tmp, ignore_index=True)
-        return df
-
-    def _process_fold(self, fld, data, kind='mfcc', parallel=False):
+    def _process_fold(self, fld, data, kind='mfcc', block_size=None, parallel=False):
         f_df = data[data['fold'] == fld]
         if parallel:
             return self.preprocess_df_parallel(f_df, kind)
