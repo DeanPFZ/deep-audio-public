@@ -7,6 +7,7 @@ backports.weakref==1.0.post1
 bleach==3.0.2
 bokeh==1.0.2
 cffi==1.11.5
+chardet==2.3.0
 cycler==0.10.0
 decorator==4.3.0
 defusedxml==0.5.0
@@ -74,6 +75,7 @@ pytz==2018.7
 PyYAML==3.13
 pyzmq==17.1.2
 qtconsole==4.4.2
+requests==2.9.1
 resampy==0.2.1
 scikit-learn==0.20.0
 scipy==1.1.0
@@ -83,18 +85,19 @@ six==1.11.0
 sklearn==0.0
 sortedcontainers==2.1.0
 SoundFile==0.10.2
+ssh-import-id==5.5
 tb-nightly==1.13.0a20181112
 tensorboard==1.12.0
+tensorflow==1.12.0
 tensorflow-estimator==1.10.12
 tensorflow-gpu==1.12.0
 tensorflow-probability==0.5.0
 termcolor==1.1.0
 terminado==0.8.1
 testpath==0.4.2
-tf-nightly-gpu==1.13.0.dev20181107
-tfp-nightly-gpu==0.6.0.dev20181031
 tornado==5.1.1
 traitlets==4.3.2
+urllib3==1.13.1
 wcwidth==0.1.7
 webencodings==0.5.1
 Werkzeug==0.14.1
