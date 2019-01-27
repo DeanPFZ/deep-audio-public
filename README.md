@@ -22,7 +22,7 @@
 
     ```bash
     apt update
-    apt install git openssh-server openssh-client
+    apt install git openssh-server openssh-client nano libsndfile-dev
     ```
 6. Follow add ssh key to Github:
    
@@ -36,7 +36,7 @@
 
 7. Clone the repository into the docker container
     ```bash
-    git clone git@github.com:georgia-tech-db/deep-audio.git
+    git clone --recursive git@github.com:georgia-tech-db/deep-audio.git
     ```
 
 8. Enter the directory and install pip dependencies
