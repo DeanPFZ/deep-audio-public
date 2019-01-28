@@ -27,7 +27,7 @@ def load_obj(name):
     
 class Audio_Processor:
    
-    def __init__(self, path, input_shape, sr=44100):
+    def __init__(self, path, sr=44100):
         self.audio_dir = path
         self.sr = sr        
         
@@ -174,17 +174,10 @@ class Audio_Processor:
         return np.vstack(items), np.array(h_cat), np.array(cat)
 
     
-    def preprocess_df(self, data, 
-                      kind='mfcc',
-                      fld=None,
-                      blocksize=None,
-                      overlap=None,
-                      n_mels=128,
-                      power_melgram=2.0,
-                      decibel_gram=True
-                     ):
+    def __preprocess_df(self, data, kind, fld, blocksize, overlap, n_mels, power_melgram, decibel_gram):
         dfs = []
         for index, sample in data.iterrows():
+            print("Loading Audio")
             loaded_tuple = self.__load_audio(data, fld, blocksize, overlap)
             if kind == 'mfcc':
                 # TODO: More intelligently choose input shape (blocksize may be None)
@@ -200,26 +193,30 @@ class Audio_Processor:
                 melgram = self.__evaluate_model(mfcc_model, loaded_tuple[0])
                 # Calculate spectrogram
                 specgram = self.__evaluate_model(spec_model, loaded_tuple[0])
-            else:
-                
-            for audio_clip in loaded_tuple[0]:
-                
-        return pd.concat(dfs)
 
-    def _process_fold(self, fld, data, kind='mfcc', block_size=None, parallel=False):
-        f_df = data[data['fold'] == fld]
-        if parallel:
-            return self.preprocess_df_parallel(f_df, kind)
-        else:
-            return self.preprocess_df(f_df, kind)
-        
-        
-    def preprocess_fold(self, fld, data, kind='mfcc', parallel=False):
+                preproc_dat = []
+                for i in range(0, spec.shape[0]):
+                    preproc_dat.append(__mfcc_encode(melgram[i], specgram[i]))
+                return pd.DataFrame(preproc_dat)
+            else:
+                pass
+        return pd.DataFrame()
+
+
+    def preprocess_fold(self, data,
+                        kind='mfcc',
+                        fld=None,
+                        blocksize=None,
+                        overlap=None,
+                        n_mels=128,
+                        power_melgram=2.0,
+                        decibel_gram=True):
         try:
             df = load_obj('fold_' + str(kind) + '_' + str(fld))
         except IOError:
+            print("Preprocess file not found, building new one")
             start_time = time.time()
-            df = self._process_fold(fld, data, kind, parallel)
+            df = self.__preprocess_df(data, kind, fld, blocksize, overlap, n_mels, power_melgram, decibel_gram)
             print("\tBytes: " + str(df.memory_usage(index=True).sum()))
             print("\tProcessing Time: " + str(time.time() - start_time))
             save_obj(df, 'fold_' + str(kind) + '_' + str(fld))
