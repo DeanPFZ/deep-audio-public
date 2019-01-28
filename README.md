@@ -10,6 +10,7 @@
         --restart always \
         -p 8888:<exposed_port> \
         -p 6006:<exposed_port> \
+        -v <notebook_dir_in_home>:/notebooks \
         tensorflow/tensorflow:latest-gpu-py3
     ```
 3. Once created, be sure that the port you use for jupyter notebooks is open on the server (by default 8888)

@@ -28,19 +28,19 @@ def load_obj(name):
 class Audio_Processor:
    
     def __init__(self, path, sr=44100):
-        self.audio_dir = path
-        self.sr = sr        
+        self._audio_dir = path
+        self._sr = sr        
         
     def set_audio_dir(self, path):
-        self.audio_dir = path
+        self._audio_dir = path
         
     def set_audio_sample_rate(self, sr):
-        self.sr = sr
+        self._sr = sr
 
     def __mel_spec_model(self, input_shape, n_mels, power_melgram, decibel_gram):
         model = Sequential()
         model.add(Melspectrogram(
-            sr=self.sr,
+            sr=self._sr,
             n_mels=n_mels,
             power_melgram=power_melgram,
             return_decibel_melgram = decibel_gram,
@@ -75,7 +75,7 @@ class Audio_Processor:
             result = pred[0, 0]
         else:
             result = pred[0, :, :, 0]
-        display.specshow(result, y_axis='linear', fmin=800, fmax=8000, sr=self.sr)
+        display.specshow(result, y_axis='linear', fmin=800, fmax=8000, sr=self._sr)
         plt.show()
 
     def __evaluate_model(self, model, c_data):
@@ -106,7 +106,7 @@ class Audio_Processor:
 
         # Load and downsample the audio.
         neural_sample_rate = 16000
-        audio = utils.load_audio(self.audio_dir + file_path, 
+        audio = utils.load_audio(self._audio_dir + file_path, 
                                  sample_length=400000, 
                                  sr=neural_sample_rate)
 
@@ -143,11 +143,11 @@ class Audio_Processor:
             # Check if blocksize is set, if not load entire file
             if blocksize:
                 # Create iterable object to pull in audio samples
-                blockgen = sf.blocks(self.audio_dir + sample.filename, 
+                blockgen = sf.blocks(self._audio_dir + sample.filename, 
                                      blocksize=blocksize, 
                                      overlap=overlap, 
                                      always_2d=True, 
-                                     samplerate=self.sr,
+                                     samplerate=self._sr,
                                      fill_value=0.0)
                 # Iterate over blocks, adding pertinent information for training
                 for bl in blockgen:
@@ -162,9 +162,9 @@ class Audio_Processor:
                     cat.append(sample.target)
             # If not given, load entire audio document
             else:
-                y, sr = sf.read(self.audio_dir + sample.filename, 
+                y, sr = sf.read(self._audio_dir + sample.filename, 
                                 fill_value=0.0,
-                                samplerate=self.sr)
+                                samplerate=self._sr)
                 y = y.transpose()
                 y = y[np.newaxis, :]
                 items.append(y)
