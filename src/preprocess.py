@@ -128,7 +128,7 @@ class Audio_Processor:
         delta_2 = feature.delta(mfccs, order=2)
         return np.vstack((mfccs[1:], delta, delta_2)).transpose()
     
-    def __load_audio(data, fld=None, blocksize=None, overlap=None, debug=False):
+    def __load_audio(data, fld, blocksize, overlap, debug=False):
         start_time = time.time()
         
         # Load fold data or all data
@@ -206,7 +206,7 @@ class Audio_Processor:
     def preprocess_fold(self, data,
                         kind='mfcc',
                         fld=None,
-                        blocksize=None,
+                        blocksize=2048,
                         overlap=None,
                         n_mels=128,
                         power_melgram=2.0,
