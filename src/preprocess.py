@@ -27,20 +27,20 @@ def load_obj(name):
     
 class Audio_Processor:
    
-    def __init__(self, path, input_shape, sr=44100):
-        self.audio_dir = path
-        self.sr = sr        
+    def __init__(self, path, sr=44100):
+        self._audio_dir = path
+        self._sr = sr        
         
     def set_audio_dir(self, path):
-        self.audio_dir = path
+        self._audio_dir = path
         
     def set_audio_sample_rate(self, sr):
-        self.sr = sr
+        self._sr = sr
 
     def __mel_spec_model(self, input_shape, n_mels, power_melgram, decibel_gram):
         model = Sequential()
         model.add(Melspectrogram(
-            sr=self.sr,
+            sr=self._sr,
             n_mels=n_mels,
             power_melgram=power_melgram,
             return_decibel_melgram = decibel_gram,
@@ -75,7 +75,7 @@ class Audio_Processor:
             result = pred[0, 0]
         else:
             result = pred[0, :, :, 0]
-        display.specshow(result, y_axis='linear', fmin=800, fmax=8000, sr=self.sr)
+        display.specshow(result, y_axis='linear', fmin=800, fmax=8000, sr=self._sr)
         plt.show()
 
     def __evaluate_model(self, model, c_data):
@@ -106,7 +106,7 @@ class Audio_Processor:
 
         # Load and downsample the audio.
         neural_sample_rate = 16000
-        audio = utils.load_audio(self.audio_dir + file_path, 
+        audio = utils.load_audio(self._audio_dir + file_path, 
                                  sample_length=400000, 
                                  sr=neural_sample_rate)
 
@@ -128,7 +128,7 @@ class Audio_Processor:
         delta_2 = feature.delta(mfccs, order=2)
         return np.vstack((mfccs[1:], delta, delta_2)).transpose()
     
-    def __load_audio(data, fld=None, blocksize=None, overlap=None, debug=False):
+    def __load_audio(data, fld, blocksize, overlap, debug=False):
         start_time = time.time()
         
         # Load fold data or all data
@@ -143,11 +143,11 @@ class Audio_Processor:
             # Check if blocksize is set, if not load entire file
             if blocksize:
                 # Create iterable object to pull in audio samples
-                blockgen = sf.blocks(self.audio_dir + sample.filename, 
+                blockgen = sf.blocks(self._audio_dir + sample.filename, 
                                      blocksize=blocksize, 
                                      overlap=overlap, 
                                      always_2d=True, 
-                                     samplerate=self.sr,
+                                     samplerate=self._sr,
                                      fill_value=0.0)
                 # Iterate over blocks, adding pertinent information for training
                 for bl in blockgen:
@@ -162,9 +162,9 @@ class Audio_Processor:
                     cat.append(sample.target)
             # If not given, load entire audio document
             else:
-                y, sr = sf.read(self.audio_dir + sample.filename, 
+                y, sr = sf.read(self._audio_dir + sample.filename, 
                                 fill_value=0.0,
-                                samplerate=self.sr)
+                                samplerate=self._sr)
                 y = y.transpose()
                 y = y[np.newaxis, :]
                 items.append(y)
@@ -174,17 +174,10 @@ class Audio_Processor:
         return np.vstack(items), np.array(h_cat), np.array(cat)
 
     
-    def preprocess_df(self, data, 
-                      kind='mfcc',
-                      fld=None,
-                      blocksize=None,
-                      overlap=None,
-                      n_mels=128,
-                      power_melgram=2.0,
-                      decibel_gram=True
-                     ):
+    def __preprocess_df(self, data, kind, fld, blocksize, overlap, n_mels, power_melgram, decibel_gram):
         dfs = []
         for index, sample in data.iterrows():
+            print("Loading Audio")
             loaded_tuple = self.__load_audio(data, fld, blocksize, overlap)
             if kind == 'mfcc':
                 # TODO: More intelligently choose input shape (blocksize may be None)
@@ -200,26 +193,30 @@ class Audio_Processor:
                 melgram = self.__evaluate_model(mfcc_model, loaded_tuple[0])
                 # Calculate spectrogram
                 specgram = self.__evaluate_model(spec_model, loaded_tuple[0])
-            else:
-                
-            for audio_clip in loaded_tuple[0]:
-                
-        return pd.concat(dfs)
 
-    def _process_fold(self, fld, data, kind='mfcc', block_size=None, parallel=False):
-        f_df = data[data['fold'] == fld]
-        if parallel:
-            return self.preprocess_df_parallel(f_df, kind)
-        else:
-            return self.preprocess_df(f_df, kind)
-        
-        
-    def preprocess_fold(self, fld, data, kind='mfcc', parallel=False):
+                preproc_dat = []
+                for i in range(0, spec.shape[0]):
+                    preproc_dat.append(__mfcc_encode(melgram[i], specgram[i]))
+                return pd.DataFrame(preproc_dat)
+            else:
+                pass
+        return pd.DataFrame()
+
+
+    def preprocess_fold(self, data,
+                        kind='mfcc',
+                        fld=None,
+                        blocksize=2048,
+                        overlap=None,
+                        n_mels=128,
+                        power_melgram=2.0,
+                        decibel_gram=True):
         try:
             df = load_obj('fold_' + str(kind) + '_' + str(fld))
         except IOError:
+            print("Preprocess file not found, building new one")
             start_time = time.time()
-            df = self._process_fold(fld, data, kind, parallel)
+            df = self.__preprocess_df(data, kind, fld, blocksize, overlap, n_mels, power_melgram, decibel_gram)
             print("\tBytes: " + str(df.memory_usage(index=True).sum()))
             print("\tProcessing Time: " + str(time.time() - start_time))
             save_obj(df, 'fold_' + str(kind) + '_' + str(fld))
