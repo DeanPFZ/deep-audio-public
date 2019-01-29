@@ -128,7 +128,7 @@ class Audio_Processor:
         delta_2 = feature.delta(mfccs, order=2)
         return np.vstack((mfccs[1:], delta, delta_2)).transpose()
     
-    def __load_audio(data, fld, blocksize, overlap, debug=False):
+    def __load_audio(self, data, fld, blocksize, overlap, debug=False):
         start_time = time.time()
         
         # Load fold data or all data
@@ -146,8 +146,7 @@ class Audio_Processor:
                 blockgen = sf.blocks(self._audio_dir + sample.filename, 
                                      blocksize=blocksize, 
                                      overlap=overlap, 
-                                     always_2d=True, 
-                                     samplerate=self._sr,
+                                     always_2d=True,
                                      fill_value=0.0)
                 # Iterate over blocks, adding pertinent information for training
                 for bl in blockgen:
@@ -163,8 +162,7 @@ class Audio_Processor:
             # If not given, load entire audio document
             else:
                 y, sr = sf.read(self._audio_dir + sample.filename, 
-                                fill_value=0.0,
-                                samplerate=self._sr)
+                                fill_value=0.0)
                 y = y.transpose()
                 y = y[np.newaxis, :]
                 items.append(y)
@@ -201,7 +199,6 @@ class Audio_Processor:
             else:
                 pass
         return pd.DataFrame()
-
 
     def preprocess_fold(self, data,
                         kind='mfcc',
