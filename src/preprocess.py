@@ -193,9 +193,9 @@ class Audio_Processor:
                 # Calculate spectrogram
                 specgram = self.__evaluate_model(spec_model, loaded_tuple[0])
 
-                preproc_dat = []
-                for i in range(0, spec.shape[0]):
-                    preproc_dat.append(__mfcc_encode(melgram[i], specgram[i]))
+                preproc_dat = np.array(self.__mfcc_encode(melgram[0], specgram[0]))
+                for i in range(1, specgram.shape[0]):
+                    np.concatenate((preproc_dat, self.__mfcc_encode(melgram[i], specgram[i])), axis=0)
                 return pd.DataFrame(preproc_dat)
             else:
                 pass

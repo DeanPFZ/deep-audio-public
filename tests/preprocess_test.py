@@ -145,7 +145,7 @@ class TestMelGet(unittest.TestCase):
         cdata, targets, c_targets = self._preprocessor._Audio_Processor__load_audio(
                                                         data=self._dataset[0:10],
                                                         fld=None, blocksize=55125, overlap=4096)
-        model = self._preprocessor._Audio_Processor__spec_model((1,55125), True)
+        model = self._preprocessor._Audio_Processor__mel_spec_model((1,22500), 13, True, True)
         self._preprocessor._Audio_Processor__check_model(model)
         spec = self._preprocessor._Audio_Processor__evaluate_model(model, cdata)
         self.assertEqual(spec.shape, (42, 257, 216))
@@ -165,6 +165,20 @@ class TestMFCCGet(unittest.TestCase):
             classes[target] = row['category']
             cls._dataset.loc[index, 'h_category'] = mapping[row['category']]
 
+
+    def test_extract_mfcc(self):
+        data = self._preprocessor._Audio_Processor__preprocess_df(self._dataset[0:10],
+                                                                kind='mfcc',
+                                                                fld=None,
+                                                                blocksize=55125,
+                                                                overlap=4096,
+                                                                n_mels=128,
+                                                                power_melgram=True,
+                                                                decibel_gram=True)
+        self.assertEqual(data.shape[0], 216)
+        self.assertEqual(data.shape[1], 38)
+
+
 # TODO: Create unit tests for wavenet encoding
 class TestWavenetGet(unittest.TestCase):
     @classmethod
@@ -180,14 +194,18 @@ class TestWavenetGet(unittest.TestCase):
             cls._dataset.loc[index, 'h_category'] = mapping[row['category']]
 
 if __name__ == '__main__':
-    util_test = unittest.TestLoader().loadTestsFromTestCase(TestUtilities)
-    unittest.TextTestRunner(verbosity=2).run(util_test)
+    # util_test = unittest.TestLoader().loadTestsFromTestCase(TestUtilities)
+    # unittest.TextTestRunner(verbosity=2).run(util_test)
 
-    load_test = unittest.TestLoader().loadTestsFromTestCase(TestLoadAudio)
-    unittest.TextTestRunner(verbosity=2).run(load_test)
+    # load_test = unittest.TestLoader().loadTestsFromTestCase(TestLoadAudio)
+    # unittest.TextTestRunner(verbosity=2).run(load_test)
 
-    spec_test = unittest.TestLoader().loadTestsFromTestCase(TestSpecGet)
-    unittest.TextTestRunner(verbosity=2).run(spec_test)
+    # spec_test = unittest.TestLoader().loadTestsFromTestCase(TestSpecGet)
+    # unittest.TextTestRunner(verbosity=2).run(spec_test)
 
-    mel_test = unittest.TestLoader().loadTestsFromTestCase(TestMelGet)
-    unittest.TextTestRunner(verbosity=2).run(mel_test)
+    # mel_test = unittest.TestLoader().loadTestsFromTestCase(TestMelGet)
+    # unittest.TextTestRunner(verbosity=2).run(mel_test)
+
+    mfcc_test = unittest.TestLoader().loadTestsFromTestCase(TestMFCCGet)
+    unittest.TextTestRunner(verbosity=2).run(mfcc_test)
+
