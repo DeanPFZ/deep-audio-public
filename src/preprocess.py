@@ -57,8 +57,9 @@ class Audio_Processor:
         ))
         return model
         
-    def __check_model(self, model):
-        model.summary(line_length=80, positions=[.33, .65, .8, 1.])
+    def __check_model(self, model, debug=False):
+        if debug:
+            model.summary(line_length=80, positions=[.33, .65, .8, 1.])
 
         batch_input_shape = (2,) + model.input_shape[1:]
         batch_output_shape = (2,) + model.output_shape[1:]

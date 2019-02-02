@@ -93,7 +93,6 @@ class TestLoadAudio(unittest.TestCase):
                                                                 fld=None, blocksize=55125, overlap=4096)
         self.assertEqual(samples.shape[1:], (1, 55125))
 
-# TODO: Create unit tests for spectrogram get
 class TestSpecGet(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -107,7 +106,22 @@ class TestSpecGet(unittest.TestCase):
             classes[target] = row['category']
             cls._dataset.loc[index, 'h_category'] = mapping[row['category']]
 
-# TODO: Create unit tests for melgram get
+    def test_get_spec_model(self):
+        print()
+        model = self._preprocessor._Audio_Processor__spec_model((1,22500), True)
+        self._preprocessor._Audio_Processor__check_model(model, True)
+        print()
+
+    def test_eval_model(self):
+        cdata, targets, c_targets = self._preprocessor._Audio_Processor__load_audio(
+                                                        data=self._dataset[0:10],
+                                                        fld=None, blocksize=55125, overlap=4096)
+        model = self._preprocessor._Audio_Processor__spec_model((1,55125), True)
+        self._preprocessor._Audio_Processor__check_model(model)
+        spec = self._preprocessor._Audio_Processor__evaluate_model(model, cdata)
+        self.assertEqual(spec.shape, (42, 257, 216))
+        
+
 class TestMelGet(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -120,6 +134,22 @@ class TestMelGet(unittest.TestCase):
             target = row['target']
             classes[target] = row['category']
             cls._dataset.loc[index, 'h_category'] = mapping[row['category']]
+
+    def test_get_mel_spec_model(self):
+        print()
+        model = self._preprocessor._Audio_Processor__mel_spec_model((1,22500), 13, True, True)
+        self._preprocessor._Audio_Processor__check_model(model, True)
+        print()
+
+    def test_eval_model(self):
+        cdata, targets, c_targets = self._preprocessor._Audio_Processor__load_audio(
+                                                        data=self._dataset[0:10],
+                                                        fld=None, blocksize=55125, overlap=4096)
+        model = self._preprocessor._Audio_Processor__spec_model((1,55125), True)
+        self._preprocessor._Audio_Processor__check_model(model)
+        spec = self._preprocessor._Audio_Processor__evaluate_model(model, cdata)
+        self.assertEqual(spec.shape, (42, 257, 216))
+
 
 # TODO: Create unit tests for mfcc encoding
 class TestMFCCGet(unittest.TestCase):
@@ -155,3 +185,9 @@ if __name__ == '__main__':
 
     load_test = unittest.TestLoader().loadTestsFromTestCase(TestLoadAudio)
     unittest.TextTestRunner(verbosity=2).run(load_test)
+
+    spec_test = unittest.TestLoader().loadTestsFromTestCase(TestSpecGet)
+    unittest.TextTestRunner(verbosity=2).run(spec_test)
+
+    mel_test = unittest.TestLoader().loadTestsFromTestCase(TestMelGet)
+    unittest.TextTestRunner(verbosity=2).run(mel_test)
