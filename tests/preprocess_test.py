@@ -79,6 +79,15 @@ class TestLoadAudio(unittest.TestCase):
         self.assertEqual(len(h_category), 10)
         self.assertEqual(len(l_category), 10)
 
+    def test_load_audio_wo_blocksize_two_files(self):
+        random = randint(0,50)
+        samples, h_category, l_category = self._preprocessor._Audio_Processor__load_audio(
+                                                                data=self._dataset[0:1],
+                                                                fld=None, blocksize=0, overlap=0)
+        self.assertEqual(samples.shape, (2, 220500))
+        self.assertEqual(len(h_category), 2)
+        self.assertEqual(len(l_category), 2)
+
     def test_load_audio_w_blocksize_only(self):
         random = randint(0,50)
         samples, h_category, l_category = self._preprocessor._Audio_Processor__load_audio(
@@ -151,7 +160,6 @@ class TestMelGet(unittest.TestCase):
         self.assertEqual(spec.shape, (42, 257, 216))
 
 
-# TODO: Create unit tests for mfcc encoding
 class TestMFCCGet(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -193,12 +201,24 @@ class TestWavenetGet(unittest.TestCase):
             classes[target] = row['category']
             cls._dataset.loc[index, 'h_category'] = mapping[row['category']]
 
+    def test_wavenet_no_blocksize(self):
+        data = self._preprocessor._Audio_Processor__preprocess_df(self._dataset[0:1],
+                                                                kind='wavnet',
+                                                                fld=None,
+                                                                blocksize=None,
+                                                                overlap=None,
+                                                                n_mels=None,
+                                                                power_melgram=None,
+                                                                decibel_gram=None)
+        print(data.shape)
+        print(data.head())
+
 if __name__ == '__main__':
     # util_test = unittest.TestLoader().loadTestsFromTestCase(TestUtilities)
     # unittest.TextTestRunner(verbosity=2).run(util_test)
 
-    # load_test = unittest.TestLoader().loadTestsFromTestCase(TestLoadAudio)
-    # unittest.TextTestRunner(verbosity=2).run(load_test)
+    load_test = unittest.TestLoader().loadTestsFromTestCase(TestLoadAudio)
+    unittest.TextTestRunner(verbosity=2).run(load_test)
 
     # spec_test = unittest.TestLoader().loadTestsFromTestCase(TestSpecGet)
     # unittest.TextTestRunner(verbosity=2).run(spec_test)
@@ -206,6 +226,8 @@ if __name__ == '__main__':
     # mel_test = unittest.TestLoader().loadTestsFromTestCase(TestMelGet)
     # unittest.TextTestRunner(verbosity=2).run(mel_test)
 
-    mfcc_test = unittest.TestLoader().loadTestsFromTestCase(TestMFCCGet)
-    unittest.TextTestRunner(verbosity=2).run(mfcc_test)
+    # mfcc_test = unittest.TestLoader().loadTestsFromTestCase(TestMFCCGet)
+    # unittest.TextTestRunner(verbosity=2).run(mfcc_test)
 
+    # wavnet_test = unittest.TestLoader().loadTestsFromTestCase(TestWavenetGet)
+    # unittest.TextTestRunner(verbosity=2).run(wavnet_test)

@@ -100,22 +100,27 @@ class Audio_Processor:
 
         return stddev, mean, sig_noise
     
-    def __wavenet_encode(file_path):
+    def __wavenet_encode(self, audio):
 
         # Load the model weights.
-        checkpoint_path = './wavenet-ckpt/model.ckpt-200000'
+        checkpoint_path = '../wavenet-ckpt/model.ckpt-200000'
 
         # Load and downsample the audio.
-        neural_sample_rate = 16000
-        audio = utils.load_audio(self._audio_dir + file_path, 
-                                 sample_length=400000, 
-                                 sr=neural_sample_rate)
+        # neural_sample_rate = 16000
+        # audio = utils.load_audio(self._audio_dir + file_path, 
+        #                          sample_length=400000, 
+        #                          sr=neural_sample_rate)
 
         # Pass the audio through the first half of the autoencoder,
         # to get a list of latent variables that describe the sound.
         # Note that it would be quicker to pass a batch of audio
         # to fastgen. 
-        encoding = fastgen.encode(audio, checkpoint_path, len(audio))
+        audio = np.squeeze(audio)
+        print(audio.shape)
+        # print(len(audio))
+        encoding = fastgen.encode(audio, checkpoint_path, audio.shape[1])
+
+        print(encoding.shape)
 
         # Reshape to a single sound.
         return encoding.reshape((-1, 16))
@@ -197,9 +202,11 @@ class Audio_Processor:
                 for i in range(1, specgram.shape[0]):
                     np.concatenate((preproc_dat, self.__mfcc_encode(melgram[i], specgram[i])), axis=0)
                 return pd.DataFrame(preproc_dat)
-            else:
-                pass
-        return pd.DataFrame()
+            elif kind == 'wavnet':
+                preproc_dat = self.__wavenet_encode(loaded_tuple[0])
+                return pd.DataFrame(preproc_dat)
+
+        return None
 
     def preprocess_fold(self, data,
                         kind='mfcc',
