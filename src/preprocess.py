@@ -12,6 +12,7 @@ import kapre
 from keras.models import Sequential
 from kapre.time_frequency import Melspectrogram, Spectrogram
 from kapre.filterbank import Filterbank
+from kapre.utils import Normalization2D
 
 # Relevant Wavenet includes
 from magenta.models.nsynth import utils
@@ -47,6 +48,7 @@ class Audio_Processor:
             input_shape=input_shape,
             trainable_fb=False
         ))
+        model.add(Normalization2D(str_axis='freq'))
         return model
         
     def __spec_model(self, input_shape, decibel_gram):
@@ -55,6 +57,7 @@ class Audio_Processor:
             return_decibel_spectrogram = decibel_gram,
             input_shape=input_shape
         ))
+        model.add(Normalization2D(str_axis='freq'))
         return model
         
     def __check_model(self, model, debug=False):
