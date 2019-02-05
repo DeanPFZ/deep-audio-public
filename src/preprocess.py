@@ -68,7 +68,7 @@ class Audio_Processor:
 
     def __visualise_model(self, model, src, logam=False):
         n_ch, nsp_src = model.input_shape[1:]
-        print(src.shape)
+        # print(src.shape)
         src = src[:nsp_src]
         src_batch = src[np.newaxis, :]
         pred = model.predict(x=src_batch)
@@ -116,11 +116,14 @@ class Audio_Processor:
         # Note that it would be quicker to pass a batch of audio
         # to fastgen. 
         audio = np.squeeze(audio)
-        print(audio.shape)
+        # print(audio.shape)
         # print(len(audio))
-        encoding = fastgen.encode(audio, checkpoint_path, audio.shape[1])
+        if(len(audio.shape) > 1):
+            encoding = fastgen.encode(audio, checkpoint_path, audio.shape[1])
+        else:
+            encoding = fastgen.encode(audio, checkpoint_path, len(audio))
 
-        print(encoding.shape)
+        # print(encoding.shape)
 
         # Reshape to a single sound.
         return encoding.reshape((-1, 16))
@@ -181,8 +184,9 @@ class Audio_Processor:
     def __preprocess_df(self, data, kind, fld, blocksize, overlap, n_mels, power_melgram, decibel_gram):
         dfs = []
         for index, sample in data.iterrows():
-            print("Loading Audio")
+            # print("Loading Audio")
             loaded_tuple = self.__load_audio(data, fld, blocksize, overlap)
+            # print(loaded_tuple[0].shape)
             if kind == 'mfcc':
                 # TODO: More intelligently choose input shape (blocksize may be None)
                 input_shape=(1,blocksize)

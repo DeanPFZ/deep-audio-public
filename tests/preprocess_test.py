@@ -6,6 +6,9 @@ import pandas as pd
 from unittest import mock
 from random import randint
 
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
+
 h_classes = ['Human & Animal', 'Interacting Materials']
 mapping = {'dog': 0,'rooster': 0,'pig': 0,'cow': 0,'frog': 0,'cat': 0,'hen': 0,
             'insects': 0,'sheep': 0,'crow': 0,'rain': 1,'sea_waves': 1,'crackling_fire': 1,
@@ -57,18 +60,18 @@ class TestLoadAudio(unittest.TestCase):
     def test_load_fld_audio_w_blocksize_only(self):
         samples, h_category, l_category = self._preprocessor._Audio_Processor__load_audio(
                                                                 data=self._dataset[:10],
-                                                                fld=1, blocksize=55125, overlap=0)
-        self.assertEqual(samples.shape, (35, 1, 55125))
-        self.assertEqual(len(h_category), 35)
-        self.assertEqual(len(l_category), 35)
+                                                                fld=1, blocksize=44100, overlap=0)
+        self.assertEqual(samples.shape, (41, 1, 44100))
+        self.assertEqual(len(h_category), 41)
+        self.assertEqual(len(l_category), 41)
 
     def test_load_fld_audio_w_blocksize_w_overlap(self):
         samples, h_category, l_category = self._preprocessor._Audio_Processor__load_audio(
                                                                 data=self._dataset[:10],
-                                                                fld=1, blocksize=55125, overlap=4096)
-        self.assertEqual(samples.shape, (42, 1, 55125))
-        self.assertEqual(len(h_category), 42)
-        self.assertEqual(len(l_category), 42)
+                                                                fld=1, blocksize=44100, overlap=4096)
+        self.assertEqual(samples.shape, (49, 1, 44100))
+        self.assertEqual(len(h_category), 49)
+        self.assertEqual(len(l_category), 49)
 
     def test_load_audio_wo_blocksize(self):
         random = randint(0,50)
@@ -79,14 +82,35 @@ class TestLoadAudio(unittest.TestCase):
         self.assertEqual(len(h_category), 10)
         self.assertEqual(len(l_category), 10)
 
-    def test_load_audio_wo_blocksize_two_files(self):
+    def test_load_audio_wo_blocksize_one_file(self):
         random = randint(0,50)
         samples, h_category, l_category = self._preprocessor._Audio_Processor__load_audio(
                                                                 data=self._dataset[0:1],
                                                                 fld=None, blocksize=0, overlap=0)
-        self.assertEqual(samples.shape, (2, 220500))
-        self.assertEqual(len(h_category), 2)
-        self.assertEqual(len(l_category), 2)
+        self.assertEqual(self._dataset[0:1].shape[0], 1)
+        self.assertEqual(samples.shape, (1, 220500))
+        self.assertEqual(len(h_category), 1)
+        self.assertEqual(len(l_category), 1)
+
+    def test_load_audio_blocksize_one_file(self):
+        random = randint(0,50)
+        samples, h_category, l_category = self._preprocessor._Audio_Processor__load_audio(
+                                                                data=self._dataset[5:6],
+                                                                fld=None, blocksize=44100, overlap=0)
+        self.assertEqual(self._dataset[0:1].shape[0], 1)
+        self.assertEqual(samples.shape, (5, 1, 44100))
+        self.assertEqual(len(h_category), 5)
+        self.assertEqual(len(l_category), 5)
+
+    def test_load_audio_blocksize_two_file(self):
+        random = randint(0,50)
+        samples, h_category, l_category = self._preprocessor._Audio_Processor__load_audio(
+                                                                data=self._dataset[4:6],
+                                                                fld=None, blocksize=44100, overlap=0)
+        self.assertEqual(self._dataset[0:1].shape[0], 1)
+        self.assertEqual(samples.shape, (10, 1, 44100))
+        self.assertEqual(len(h_category), 10)
+        self.assertEqual(len(l_category), 10)
 
     def test_load_audio_w_blocksize_only(self):
         random = randint(0,50)
@@ -154,10 +178,10 @@ class TestMelGet(unittest.TestCase):
         cdata, targets, c_targets = self._preprocessor._Audio_Processor__load_audio(
                                                         data=self._dataset[0:10],
                                                         fld=None, blocksize=55125, overlap=4096)
-        model = self._preprocessor._Audio_Processor__mel_spec_model((1,22500), 13, True, True)
+        model = self._preprocessor._Audio_Processor__mel_spec_model((1,55125), 13, True, True)
         self._preprocessor._Audio_Processor__check_model(model)
         spec = self._preprocessor._Audio_Processor__evaluate_model(model, cdata)
-        self.assertEqual(spec.shape, (42, 257, 216))
+        self.assertEqual(spec.shape, (42, 13, 216))
 
 
 class TestMFCCGet(unittest.TestCase):
@@ -187,7 +211,6 @@ class TestMFCCGet(unittest.TestCase):
         self.assertEqual(data.shape[1], 38)
 
 
-# TODO: Create unit tests for wavenet encoding
 class TestWavenetGet(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -210,24 +233,47 @@ class TestWavenetGet(unittest.TestCase):
                                                                 n_mels=None,
                                                                 power_melgram=None,
                                                                 decibel_gram=None)
-        print(data.shape)
-        print(data.head())
+        self.assertEqual(data.shape, (430, 16))
+
+    def test_wavenet_no_blocksize_multiple(self):
+        data = self._preprocessor._Audio_Processor__preprocess_df(self._dataset[0:2],
+                                                                kind='wavnet',
+                                                                fld=None,
+                                                                blocksize=None,
+                                                                overlap=None,
+                                                                n_mels=None,
+                                                                power_melgram=None,
+                                                                decibel_gram=None)
+
+        self.assertEqual(data.shape, (860, 16))
+
+    def test_wavenet_blocksize(self):
+        data = self._preprocessor._Audio_Processor__preprocess_df(self._dataset[5:6],
+                                                                kind='wavnet',
+                                                                fld=None,
+                                                                blocksize=44100,
+                                                                overlap=0,
+                                                                n_mels=None,
+                                                                power_melgram=None,
+                                                                decibel_gram=None)
+
+        self.assertEqual(data.shape, (430, 16))
 
 if __name__ == '__main__':
-    # util_test = unittest.TestLoader().loadTestsFromTestCase(TestUtilities)
-    # unittest.TextTestRunner(verbosity=2).run(util_test)
+    util_test = unittest.TestLoader().loadTestsFromTestCase(TestUtilities)
+    unittest.TextTestRunner(verbosity=1).run(util_test)
 
     load_test = unittest.TestLoader().loadTestsFromTestCase(TestLoadAudio)
-    unittest.TextTestRunner(verbosity=2).run(load_test)
+    unittest.TextTestRunner(verbosity=1).run(load_test)
 
-    # spec_test = unittest.TestLoader().loadTestsFromTestCase(TestSpecGet)
-    # unittest.TextTestRunner(verbosity=2).run(spec_test)
+    spec_test = unittest.TestLoader().loadTestsFromTestCase(TestSpecGet)
+    unittest.TextTestRunner(verbosity=1).run(spec_test)
 
-    # mel_test = unittest.TestLoader().loadTestsFromTestCase(TestMelGet)
-    # unittest.TextTestRunner(verbosity=2).run(mel_test)
+    mel_test = unittest.TestLoader().loadTestsFromTestCase(TestMelGet)
+    unittest.TextTestRunner(verbosity=1).run(mel_test)
 
-    # mfcc_test = unittest.TestLoader().loadTestsFromTestCase(TestMFCCGet)
-    # unittest.TextTestRunner(verbosity=2).run(mfcc_test)
+    mfcc_test = unittest.TestLoader().loadTestsFromTestCase(TestMFCCGet)
+    unittest.TextTestRunner(verbosity=1).run(mfcc_test)
 
-    # wavnet_test = unittest.TestLoader().loadTestsFromTestCase(TestWavenetGet)
-    # unittest.TextTestRunner(verbosity=2).run(wavnet_test)
+    wavnet_test = unittest.TestLoader().loadTestsFromTestCase(TestWavenetGet)
+    unittest.TextTestRunner(verbosity=1).run(wavnet_test)
