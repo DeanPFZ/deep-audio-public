@@ -57,8 +57,9 @@ class Audio_Processor:
         ))
         return model
         
-    def __check_model(self, model):
-        model.summary(line_length=80, positions=[.33, .65, .8, 1.])
+    def __check_model(self, model, debug=False):
+        if debug:
+            model.summary(line_length=80, positions=[.33, .65, .8, 1.])
 
         batch_input_shape = (2,) + model.input_shape[1:]
         batch_output_shape = (2,) + model.output_shape[1:]
@@ -67,7 +68,7 @@ class Audio_Processor:
 
     def __visualise_model(self, model, src, logam=False):
         n_ch, nsp_src = model.input_shape[1:]
-        print(src.shape)
+        # print(src.shape)
         src = src[:nsp_src]
         src_batch = src[np.newaxis, :]
         pred = model.predict(x=src_batch)
@@ -99,22 +100,30 @@ class Audio_Processor:
 
         return stddev, mean, sig_noise
     
-    def __wavenet_encode(file_path):
+    def __wavenet_encode(self, audio):
 
         # Load the model weights.
-        checkpoint_path = './wavenet-ckpt/model.ckpt-200000'
+        checkpoint_path = '../wavenet-ckpt/model.ckpt-200000'
 
         # Load and downsample the audio.
-        neural_sample_rate = 16000
-        audio = utils.load_audio(self._audio_dir + file_path, 
-                                 sample_length=400000, 
-                                 sr=neural_sample_rate)
+        # neural_sample_rate = 16000
+        # audio = utils.load_audio(self._audio_dir + file_path, 
+        #                          sample_length=400000, 
+        #                          sr=neural_sample_rate)
 
         # Pass the audio through the first half of the autoencoder,
         # to get a list of latent variables that describe the sound.
         # Note that it would be quicker to pass a batch of audio
         # to fastgen. 
-        encoding = fastgen.encode(audio, checkpoint_path, len(audio))
+        audio = np.squeeze(audio)
+        # print(audio.shape)
+        # print(len(audio))
+        if(len(audio.shape) > 1):
+            encoding = fastgen.encode(audio, checkpoint_path, audio.shape[1])
+        else:
+            encoding = fastgen.encode(audio, checkpoint_path, len(audio))
+
+        # print(encoding.shape)
 
         # Reshape to a single sound.
         return encoding.reshape((-1, 16))
@@ -175,8 +184,9 @@ class Audio_Processor:
     def __preprocess_df(self, data, kind, fld, blocksize, overlap, n_mels, power_melgram, decibel_gram):
         dfs = []
         for index, sample in data.iterrows():
-            print("Loading Audio")
+            # print("Loading Audio")
             loaded_tuple = self.__load_audio(data, fld, blocksize, overlap)
+            # print(loaded_tuple[0].shape)
             if kind == 'mfcc':
                 # TODO: More intelligently choose input shape (blocksize may be None)
                 input_shape=(1,blocksize)
@@ -192,13 +202,15 @@ class Audio_Processor:
                 # Calculate spectrogram
                 specgram = self.__evaluate_model(spec_model, loaded_tuple[0])
 
-                preproc_dat = []
-                for i in range(0, spec.shape[0]):
-                    preproc_dat.append(__mfcc_encode(melgram[i], specgram[i]))
+                preproc_dat = np.array(self.__mfcc_encode(melgram[0], specgram[0]))
+                for i in range(1, specgram.shape[0]):
+                    np.concatenate((preproc_dat, self.__mfcc_encode(melgram[i], specgram[i])), axis=0)
                 return pd.DataFrame(preproc_dat)
-            else:
-                pass
-        return pd.DataFrame()
+            elif kind == 'wavnet':
+                preproc_dat = self.__wavenet_encode(loaded_tuple[0])
+                return pd.DataFrame(preproc_dat)
+
+        return None
 
     def preprocess_fold(self, data,
                         kind='mfcc',
