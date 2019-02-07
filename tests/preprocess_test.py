@@ -207,8 +207,8 @@ class TestMFCCGet(unittest.TestCase):
                                                                 n_mels=128,
                                                                 power_melgram=True,
                                                                 decibel_gram=True)
-        self.assertEqual(data.shape[0], 216)
-        self.assertEqual(data.shape[1], 38)
+        self.assertEqual(data.shape[0], 42)
+        self.assertEqual(data.shape[1], 116)
 
 
 class TestWavenetGet(unittest.TestCase):
@@ -259,6 +259,32 @@ class TestWavenetGet(unittest.TestCase):
 
         self.assertEqual(data.shape, (430, 16))
 
+class TestDFPreproc(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls._preprocessor = preprocess.Audio_Processor('../ESC-50/audio/')
+        path_to_db='../ESC-50/'
+        cls._dataset = pd.read_csv(path_to_db + 'meta/esc50.csv')
+        classes = [None] * 50
+        cls._dataset['h_category'] = None
+        for index, row in cls._dataset.iterrows():
+            target = row['target']
+            classes[target] = row['category']
+            cls._dataset.loc[index, 'h_category'] = mapping[row['category']]
+
+    def test_dataframe_columns(self):
+        data = self._preprocessor._Audio_Processor__preprocess_df(self._dataset[0:10],
+                                                                kind='mfcc',
+                                                                fld=None,
+                                                                blocksize=220500,
+                                                                overlap=0,
+                                                                n_mels=128,
+                                                                power_melgram=True,
+                                                                decibel_gram=True)
+        self.assertIn('l_target', data.columns)
+        self.assertIn('h_target', data.columns)
+        self.assertEqual(data.shape[0], 10)
+
 if __name__ == '__main__':
     util_test = unittest.TestLoader().loadTestsFromTestCase(TestUtilities)
     unittest.TextTestRunner(verbosity=1).run(util_test)
@@ -277,3 +303,6 @@ if __name__ == '__main__':
 
     wavnet_test = unittest.TestLoader().loadTestsFromTestCase(TestWavenetGet)
     unittest.TextTestRunner(verbosity=1).run(wavnet_test)
+
+    preproc_test = unittest.TestLoader().loadTestsFromTestCase(TestDFPreproc)
+    unittest.TextTestRunner(verbosity=1).run(preproc_test)

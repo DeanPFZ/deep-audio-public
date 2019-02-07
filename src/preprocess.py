@@ -1,5 +1,5 @@
 import pandas as pd
-from librosa import display, feature
+from librosa import display, feature, power_to_db
 import numpy as np
 import multiprocessing as mp
 import time
@@ -101,7 +101,9 @@ class Audio_Processor:
 
         sig_noise = mean / stddev
 
-        return stddev, mean, sig_noise
+        ret_dat = np.hstack((stddev, mean, sig_noise))
+
+        return ret_dat
     
     def __wavenet_encode(self, audio):
 
@@ -126,19 +128,28 @@ class Audio_Processor:
         else:
             encoding = fastgen.encode(audio, checkpoint_path, len(audio))
 
-        # print(encoding.shape)
+        print("Pre: " + str(encoding.shape))
+
+        encoding = self.__std_dev_mean_noise(encoding)
+
+        print("Post: " + str(encoding.shape))
 
         # Reshape to a single sound.
-        return encoding.reshape((-1, 16))
+        return encoding
     
     def __mfcc_encode(self, mel_spec, spec):
         # Calculate the first 13 mfcc's
-        mfccs = feature.mfcc(S=mel_spec, n_mfcc=13)
+        mfccs = feature.mfcc(S=power_to_db(mel_spec), n_mfcc=13)
         # Get first derivative of the mfccs
         delta = feature.delta(mfccs)
         # Get second derivative of mfccs
         delta_2 = feature.delta(mfccs, order=2)
-        return np.vstack((mfccs[1:], delta, delta_2)).transpose()
+
+        dat = np.vstack((mfccs[1:], delta, delta_2))
+
+        # Reduce to single row
+        dat = self.__std_dev_mean_noise(dat)
+        return dat
     
     def __load_audio(self, data, fld, blocksize, overlap, debug=False):
         start_time = time.time()
@@ -186,39 +197,50 @@ class Audio_Processor:
     
     def __preprocess_df(self, data, kind, fld, blocksize, overlap, n_mels, power_melgram, decibel_gram):
         dfs = []
-        for index, sample in data.iterrows():
-            # print("Loading Audio")
-            loaded_tuple = self.__load_audio(data, fld, blocksize, overlap)
-            # print(loaded_tuple[0].shape)
-            if kind == 'mfcc':
-                # TODO: More intelligently choose input shape (blocksize may be None)
-                input_shape=(1,blocksize)
-                # Generate keras network to get melgram
-                mfcc_model = self.__mel_spec_model(input_shape, n_mels, power_melgram, decibel_gram)
-                self.__check_model(mfcc_model)
-                # Generate keras network to get spectrogram
-                spec_model = self.__spec_model(input_shape, decibel_gram)
-                self.__check_model(spec_model)
-                
-                # Calculate melgram
-                melgram = self.__evaluate_model(mfcc_model, loaded_tuple[0])
-                # Calculate spectrogram
-                specgram = self.__evaluate_model(spec_model, loaded_tuple[0])
+        loaded_tuple = self.__load_audio(data, fld, blocksize, overlap)
+        l_target = np.reshape(loaded_tuple[1], (len(loaded_tuple[1]), 1))
+        h_target = np.reshape(loaded_tuple[2], (len(loaded_tuple[2]), 1))
 
-                preproc_dat = np.array(self.__mfcc_encode(melgram[0], specgram[0]))
-                for i in range(1, specgram.shape[0]):
-                    np.concatenate((preproc_dat, self.__mfcc_encode(melgram[i], specgram[i])), axis=0)
-                return pd.DataFrame(preproc_dat)
-            elif kind == 'wavnet':
-                preproc_dat = self.__wavenet_encode(loaded_tuple[0])
-                return pd.DataFrame(preproc_dat)
+        if kind == 'mfcc':
+            # TODO: More intelligently choose input shape (blocksize may be None)
+            input_shape=(1,blocksize)
+            # Generate keras network to get melgram
+            mfcc_model = self.__mel_spec_model(input_shape, n_mels, power_melgram, decibel_gram)
+            self.__check_model(mfcc_model)
+            # Generate keras network to get spectrogram
+            spec_model = self.__spec_model(input_shape, decibel_gram)
+            self.__check_model(spec_model)
+            
+            # Calculate melgram
+            melgram = self.__evaluate_model(mfcc_model, loaded_tuple[0])
+            # Calculate spectrogram
+            specgram = self.__evaluate_model(spec_model, loaded_tuple[0])
 
-        return None
+            mfcc_dat = self.__mfcc_encode(melgram[0], specgram[0])
+            preproc_dat = np.array(mfcc_dat)
+            for i in range(1, specgram.shape[0]):
+                mfcc_dat = self.__mfcc_encode(melgram[i], specgram[i])
+                preproc_dat = np.vstack((preproc_dat, mfcc_dat))
+
+            preproc_dat = np.hstack((preproc_dat, l_target, h_target))
+
+        elif kind == 'wavnet':
+            preproc_dat = self.__wavenet_encode(loaded_tuple[0])
+            print(preproc_dat.shape)
+            print(l_target.shape)
+            print(h_target.shape)
+            preproc_dat = np.hstack((preproc_dat, l_target, h_target))
+
+        df = pd.DataFrame(preproc_dat)
+        df.rename(columns=dict(zip(df.columns[-2:], ['l_target', 'h_target'])), inplace=True)
+        df['l_target'] = df['l_target'].astype(int)
+        df['h_target'] = df['h_target'].astype(int)
+        return df
 
     def preprocess_fold(self, data,
                         kind='mfcc',
                         fld=None,
-                        blocksize=2048,
+                        blocksize=44100,
                         overlap=None,
                         n_mels=128,
                         power_melgram=2.0,
@@ -231,5 +253,5 @@ class Audio_Processor:
             df = self.__preprocess_df(data, kind, fld, blocksize, overlap, n_mels, power_melgram, decibel_gram)
             print("\tBytes: " + str(df.memory_usage(index=True).sum()))
             print("\tProcessing Time: " + str(time.time() - start_time))
-            save_obj(df, 'fold_' + str(kind) + '_' + str(fld))
+            save_obj(df, 'fold_' + str(kind) + '_' + str(fld) + str(blocksize) + str(overlap))
         return df
