@@ -19,12 +19,10 @@ from magenta.models.nsynth import utils
 from magenta.models.nsynth.wavenet import fastgen
 
 def save_obj(obj, name ):
-    with open('../preprocessed_objs/'+ name + '.pkl', 'wb') as f:
-        pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
+    obj.to_csv('../preprocessed_objs/' + name + '.csv', index=None, sep=',')
 
 def load_obj(name):
-    with open('../preprocessed_objs/' + name + '.pkl', 'rb') as f:
-        return pickle.load(f)
+    return pd.read_csv('../preprocessed_objs/' + name + '.csv')
     
 class Audio_Processor:
    
@@ -156,7 +154,10 @@ class Audio_Processor:
         
         # Load fold data or all data
         if fld:
-            f_df = data[data['fold'] == fld]
+            try:
+                f_df = data[data['fold'] == fld]
+            except TypeError:
+                f_df = data[data['fold'].between(fld[0], fld[-1])]
         else:
             f_df = data
         items = []
@@ -235,6 +236,7 @@ class Audio_Processor:
         df.rename(columns=dict(zip(df.columns[-2:], ['l_target', 'h_target'])), inplace=True)
         df['l_target'] = df['l_target'].astype(int)
         df['h_target'] = df['h_target'].astype(int)
+        df.fillna(0, inplace=True)
         return df
 
     def preprocess_fold(self, data,
@@ -246,12 +248,12 @@ class Audio_Processor:
                         power_melgram=2.0,
                         decibel_gram=True):
         try:
-            df = load_obj('fold_' + str(kind) + '_' + str(fld))
+            df = load_obj('fold_' + str(fld) + '_' + str(kind) + '_' + str(blocksize) + str(overlap))
         except IOError:
             print("Preprocess file not found, building new one")
             start_time = time.time()
             df = self.__preprocess_df(data, kind, fld, blocksize, overlap, n_mels, power_melgram, decibel_gram)
             print("\tBytes: " + str(df.memory_usage(index=True).sum()))
             print("\tProcessing Time: " + str(time.time() - start_time))
-            save_obj(df, 'fold_' + str(kind) + '_' + str(fld) + str(blocksize) + str(overlap))
+            save_obj(df, 'fold_' + str(fld) + '_' + str(kind) + '_' + str(blocksize) + str(overlap))
         return df

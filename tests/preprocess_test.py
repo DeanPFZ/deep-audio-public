@@ -126,6 +126,18 @@ class TestLoadAudio(unittest.TestCase):
                                                                 fld=None, blocksize=55125, overlap=4096)
         self.assertEqual(samples.shape[1:], (1, 55125))
 
+    def test_load_audio_w_multiple_fld_w_range(self):
+        samples, h_category, l_category = self._preprocessor._Audio_Processor__load_audio(
+                                                                data=self._dataset[25:40],
+                                                                fld=range(1,5), blocksize=55125, overlap=0)
+        self.assertEqual(samples.shape[1:], (1, 55125))
+
+    def test_load_audio_w_multiple_fld_w_list(self):
+        samples, h_category, l_category = self._preprocessor._Audio_Processor__load_audio(
+                                                                data=self._dataset[25:40],
+                                                                fld=[1,2,3,4], blocksize=55125, overlap=0)
+        self.assertEqual(samples.shape[1:], (1, 55125))
+
 class TestSpecGet(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

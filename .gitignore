@@ -107,3 +107,4 @@ venv.bak/
 src/mdn
 wavenet-ckpt*
 ._wavenet-ckpt
+preprocessed_objs/
