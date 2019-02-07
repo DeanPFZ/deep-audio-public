@@ -233,7 +233,7 @@ class TestWavenetGet(unittest.TestCase):
                                                                 n_mels=None,
                                                                 power_melgram=None,
                                                                 decibel_gram=None)
-        self.assertEqual(data.shape, (430, 16))
+        self.assertEqual(data.shape, (1, 16*3 + 2))
 
     def test_wavenet_no_blocksize_multiple(self):
         data = self._preprocessor._Audio_Processor__preprocess_df(self._dataset[0:2],
@@ -245,7 +245,7 @@ class TestWavenetGet(unittest.TestCase):
                                                                 power_melgram=None,
                                                                 decibel_gram=None)
 
-        self.assertEqual(data.shape, (860, 16))
+        self.assertEqual(data.shape, (2, 16*3 + 2))
 
     def test_wavenet_blocksize(self):
         data = self._preprocessor._Audio_Processor__preprocess_df(self._dataset[5:6],
@@ -257,7 +257,7 @@ class TestWavenetGet(unittest.TestCase):
                                                                 power_melgram=None,
                                                                 decibel_gram=None)
 
-        self.assertEqual(data.shape, (430, 16))
+        self.assertEqual(data.shape, (5, 16*3 + 2))
 
 class TestDFPreproc(unittest.TestCase):
     @classmethod

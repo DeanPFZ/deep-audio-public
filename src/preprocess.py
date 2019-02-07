@@ -226,9 +226,9 @@ class Audio_Processor:
 
         elif kind == 'wavnet':
             preproc_dat = self.__wavenet_encode(loaded_tuple[0])
-            print(preproc_dat.shape)
-            print(l_target.shape)
-            print(h_target.shape)
+            # print(preproc_dat.shape)
+            # print(l_target.shape)
+            # print(h_target.shape)
             preproc_dat = np.hstack((preproc_dat, l_target, h_target))
 
         df = pd.DataFrame(preproc_dat)
