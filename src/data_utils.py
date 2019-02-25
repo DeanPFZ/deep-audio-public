@@ -35,11 +35,11 @@ def split_training_test(df, test_size=0.2):
     return train_test_split(df, test_size=test_size)
 
 # Enumerates strings in dataframe returns the label encoder that can reverse transform
-def enumerate_strings(df):
+def enumerate_strings(df, exclude):
     column_enums = {}
     for column in df.columns:
         # If the column is made up of strings convert
-        if not pd.api.types.is_numeric_dtype(df[column]):
+        if not pd.api.types.is_numeric_dtype(df[column]) and column not in exclude:
             le = preprocessing.LabelEncoder()
             le.fit(df[column])
             df[column] = le.transform(df[column])

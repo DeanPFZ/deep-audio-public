@@ -5,6 +5,7 @@ import multiprocessing as mp
 import time
 import pickle
 import soundfile as sf
+import os
 
 #Relevant Keras/Kapre includes
 import keras
@@ -18,17 +19,21 @@ from kapre.utils import Normalization2D
 from magenta.models.nsynth import utils
 from magenta.models.nsynth.wavenet import fastgen
 
-def save_obj(obj, name ):
-    obj.to_csv('../preprocessed_objs/' + name + '.csv', index=None, sep=',')
-
-def load_obj(name):
-    return pd.read_csv('../preprocessed_objs/' + name + '.csv')
-    
+   
 class Audio_Processor:
    
     def __init__(self, path, sr=44100):
         self._audio_dir = path
         self._sr = sr        
+
+    def save_obj(self, obj, name ):
+        if not os.path.exists(self._audio_dir + '/preprocessed_objs/'):
+            os.makedirs(self._audio_dir + '/preprocessed_objs/')
+        obj.to_csv(self._audio_dir + '/preprocessed_objs/' + name + '.csv', index=None, sep=',')
+
+    def load_obj(self, name):
+        return pd.read_csv(self._audio_dir + '/preprocessed_objs/' + name + '.csv')
+
         
     def set_audio_dir(self, path):
         self._audio_dir = path
@@ -126,12 +131,9 @@ class Audio_Processor:
         else:
             encoding = fastgen.encode(audio, checkpoint_path, len(audio))
 
-        print("Pre: " + str(encoding.shape))
-
+#         print("Pre: " + str(encoding.shape))
         encoding = self.__std_dev_mean_noise(encoding)
-
-        print("Post: " + str(encoding.shape))
-
+#         print("Post: " + str(encoding.shape))
         # Reshape to a single sound.
         return encoding
     
@@ -145,7 +147,7 @@ class Audio_Processor:
 
         dat = np.vstack((mfccs[1:], delta, delta_2))
 
-        # Reduce to single row
+        # Reduce to single feature row
         dat = self.__std_dev_mean_noise(dat)
         return dat
     
@@ -226,10 +228,11 @@ class Audio_Processor:
             preproc_dat = np.hstack((preproc_dat, l_target, h_target))
 
         elif kind == 'wavnet':
-            preproc_dat = self.__wavenet_encode(loaded_tuple[0])
-            # print(preproc_dat.shape)
-            # print(l_target.shape)
-            # print(h_target.shape)
+#             preproc_dat = self.__wavenet_encode(loaded_tuple[0])
+            preproc_dat = self.__wavenet_encode(loaded_tuple[0][0])
+            for i in range(1,len(loaded_tuple[0])):
+                preproc_dat = np.vstack((preproc_dat, self.__wavenet_encode(loaded_tuple[0][i])))
+#                 print(preproc_dat.shape)
             preproc_dat = np.hstack((preproc_dat, l_target, h_target))
 
         df = pd.DataFrame(preproc_dat)
@@ -248,12 +251,12 @@ class Audio_Processor:
                         power_melgram=2.0,
                         decibel_gram=True):
         try:
-            df = load_obj('fold_' + str(fld) + '_' + str(kind) + '_' + str(blocksize) + str(overlap))
+            df = self.load_obj('fold_' + str(fld) + '_' + str(kind) + '_' + str(blocksize) + str(overlap))
         except IOError:
             print("Preprocess file not found, building new one")
             start_time = time.time()
             df = self.__preprocess_df(data, kind, fld, blocksize, overlap, n_mels, power_melgram, decibel_gram)
             print("\tBytes: " + str(df.memory_usage(index=True).sum()))
             print("\tProcessing Time: " + str(time.time() - start_time))
-            save_obj(df, 'fold_' + str(fld) + '_' + str(kind) + '_' + str(blocksize) + str(overlap))
+            self.save_obj(df, 'fold_' + str(fld) + '_' + str(kind) + '_' + str(blocksize) + str(overlap))
         return df
