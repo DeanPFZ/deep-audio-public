@@ -7,3 +7,6 @@
 [submodule "audiosetdl"]
 	path = audiosetdl
 	url = https://github.com/marl/audiosetdl.git
+[submodule "Deep-Audio-Paper"]
+	path = Deep-Audio-Paper
+	url = git@github.com:logasja/Deep-Audio-Paper.git
