@@ -126,6 +126,18 @@ class TestLoadAudio(unittest.TestCase):
                                                                 fld=None, blocksize=55125, overlap=4096)
         self.assertEqual(samples.shape[1:], (1, 55125))
 
+    def test_load_audio_w_multiple_fld_w_range(self):
+        samples, h_category, l_category = self._preprocessor._Audio_Processor__load_audio(
+                                                                data=self._dataset[25:40],
+                                                                fld=range(1,5), blocksize=55125, overlap=0)
+        self.assertEqual(samples.shape[1:], (1, 55125))
+
+    def test_load_audio_w_multiple_fld_w_list(self):
+        samples, h_category, l_category = self._preprocessor._Audio_Processor__load_audio(
+                                                                data=self._dataset[25:40],
+                                                                fld=[1,2,3,4], blocksize=55125, overlap=0)
+        self.assertEqual(samples.shape[1:], (1, 55125))
+
 class TestSpecGet(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -207,8 +219,8 @@ class TestMFCCGet(unittest.TestCase):
                                                                 n_mels=128,
                                                                 power_melgram=True,
                                                                 decibel_gram=True)
-        self.assertEqual(data.shape[0], 216)
-        self.assertEqual(data.shape[1], 38)
+        self.assertEqual(data.shape[0], 42)
+        self.assertEqual(data.shape[1], 116)
 
 
 class TestWavenetGet(unittest.TestCase):
@@ -233,7 +245,7 @@ class TestWavenetGet(unittest.TestCase):
                                                                 n_mels=None,
                                                                 power_melgram=None,
                                                                 decibel_gram=None)
-        self.assertEqual(data.shape, (430, 16))
+        self.assertEqual(data.shape, (1, 16*3 + 2))
 
     def test_wavenet_no_blocksize_multiple(self):
         data = self._preprocessor._Audio_Processor__preprocess_df(self._dataset[0:2],
@@ -245,7 +257,7 @@ class TestWavenetGet(unittest.TestCase):
                                                                 power_melgram=None,
                                                                 decibel_gram=None)
 
-        self.assertEqual(data.shape, (860, 16))
+        self.assertEqual(data.shape, (2, 16*3 + 2))
 
     def test_wavenet_blocksize(self):
         data = self._preprocessor._Audio_Processor__preprocess_df(self._dataset[5:6],
@@ -257,7 +269,33 @@ class TestWavenetGet(unittest.TestCase):
                                                                 power_melgram=None,
                                                                 decibel_gram=None)
 
-        self.assertEqual(data.shape, (430, 16))
+        self.assertEqual(data.shape, (5, 16*3 + 2))
+
+class TestDFPreproc(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls._preprocessor = preprocess.Audio_Processor('../ESC-50/audio/')
+        path_to_db='../ESC-50/'
+        cls._dataset = pd.read_csv(path_to_db + 'meta/esc50.csv')
+        classes = [None] * 50
+        cls._dataset['h_category'] = None
+        for index, row in cls._dataset.iterrows():
+            target = row['target']
+            classes[target] = row['category']
+            cls._dataset.loc[index, 'h_category'] = mapping[row['category']]
+
+    def test_dataframe_columns(self):
+        data = self._preprocessor._Audio_Processor__preprocess_df(self._dataset[0:10],
+                                                                kind='mfcc',
+                                                                fld=None,
+                                                                blocksize=220500,
+                                                                overlap=0,
+                                                                n_mels=128,
+                                                                power_melgram=True,
+                                                                decibel_gram=True)
+        self.assertIn('l_target', data.columns)
+        self.assertIn('h_target', data.columns)
+        self.assertEqual(data.shape[0], 10)
 
 if __name__ == '__main__':
     util_test = unittest.TestLoader().loadTestsFromTestCase(TestUtilities)
@@ -277,3 +315,6 @@ if __name__ == '__main__':
 
     wavnet_test = unittest.TestLoader().loadTestsFromTestCase(TestWavenetGet)
     unittest.TextTestRunner(verbosity=1).run(wavnet_test)
+
+    preproc_test = unittest.TestLoader().loadTestsFromTestCase(TestDFPreproc)
+    unittest.TextTestRunner(verbosity=1).run(preproc_test)
