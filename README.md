@@ -14,6 +14,10 @@
         tensorflow/tensorflow:latest-gpu-py3
     ```
 3. Once created, be sure that the port you use for jupyter notebooks is open on the server (by default 8888)
+4. Start the new container through
+   ```bash
+   sudo docker start deep-audio
+   ```
 4. Open a bash shell into your container using
     ```bash
     sudo docker exec -it deep-audio /bin/bash
