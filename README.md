@@ -29,7 +29,7 @@
     apt update
     apt install git openssh-server openssh-client nano libsndfile-dev
     ```
-6. Follow add ssh key to Github:
+6. Add ssh key to Github:
    
    ```bash
    ssh-keygen -t rsa -b 4096 -C "your_email@example.com"
@@ -39,7 +39,7 @@
    ```
    >From:   https://help.github.com/articles/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent/#platform-linux
 
-7. Clone the repository into the docker container
+7. Clone the repository into container
     ```bash
     git clone --recursive git@github.com:georgia-tech-db/deep-audio.git
     ```
