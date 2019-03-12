@@ -1,12 +1,6 @@
 [submodule "ESC-50"]
 	path = ESC-50
 	url = https://github.com/karoldvl/ESC-50.git
-[submodule "src/cbar"]
-	path = src/cbar
-	url = git@github.com:georgia-tech-db/cbar.git
-[submodule "audiosetdl"]
-	path = audiosetdl
-	url = https://github.com/marl/audiosetdl.git
 [submodule "Deep-Audio-Paper"]
 	path = Deep-Audio-Paper
 	url = git@github.com:logasja/Deep-Audio-Paper.git

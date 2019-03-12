@@ -7,6 +7,8 @@ import pickle
 import soundfile as sf
 import os
 
+from sklearn.preprocessing import normalize
+
 #Relevant Keras/Kapre includes
 import keras
 import kapre
@@ -225,15 +227,14 @@ class Audio_Processor:
                 mfcc_dat = self.__mfcc_encode(melgram[i], specgram[i])
                 preproc_dat = np.vstack((preproc_dat, mfcc_dat))
 
-            preproc_dat = np.hstack((preproc_dat, l_target, h_target))
-
         elif kind == 'wavnet':
 #             preproc_dat = self.__wavenet_encode(loaded_tuple[0])
             preproc_dat = self.__wavenet_encode(loaded_tuple[0][0])
             for i in range(1,len(loaded_tuple[0])):
                 preproc_dat = np.vstack((preproc_dat, self.__wavenet_encode(loaded_tuple[0][i])))
-#                 print(preproc_dat.shape)
-            preproc_dat = np.hstack((preproc_dat, l_target, h_target))
+            
+        # Stack the data with labels
+        preproc_dat = np.hstack((preproc_dat, l_target, h_target))
 
         df = pd.DataFrame(preproc_dat)
         df.rename(columns=dict(zip(df.columns[-2:], ['l_target', 'h_target'])), inplace=True)
@@ -259,4 +260,9 @@ class Audio_Processor:
             print("\tBytes: " + str(df.memory_usage(index=True).sum()))
             print("\tProcessing Time: " + str(time.time() - start_time))
             self.save_obj(df, 'fold_' + str(fld) + '_' + str(kind) + '_' + str(blocksize) + str(overlap))
+        
+        # Normalize the data
+        cols_to_norm = df.columns[:-2]
+        df[cols_to_norm] = normalize(df[cols_to_norm], axis=1)
+            
         return df
