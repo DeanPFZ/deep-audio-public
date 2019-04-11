@@ -199,6 +199,30 @@ class Audio_Processor:
                 
         return np.vstack(items), np.array(h_cat), np.array(cat)
 
+    def __load_file(self, path, blocksize, overlap, debug=False):
+        items = []
+        if blocksize:
+            blockgen = sf.blocks(path,
+                                 blocksize=blocksize,
+                                 overlap=overlap,
+                                 always_2d=True,
+                                 fill_value=0.0)
+            for bl in blockgen:
+                if not np.any(bl):
+                    continue
+                y = bl.transpose()
+                y = y[:int(blocksize)]
+                y = y[np.newaxis, :]
+                items.append(y)
+        else:
+            y, sr = sf.read(path,
+                            fill_value=0.0)
+            y = y.transpose()
+            y = y[np.newaxis, :]
+            items.append(y)
+        
+        return np.vstack(items)
+                
     
     def __preprocess_df(self, data, kind, fld, blocksize, overlap, n_mels, power_melgram, decibel_gram):
         dfs = []
@@ -243,6 +267,49 @@ class Audio_Processor:
         df.fillna(0, inplace=True)
         return df
 
+    def preprocess_file(self, path,
+                        kind='mfcc',
+                        blocksize=44100,
+                        overlap=None,
+                        n_mels=128,
+                        power_melgram=2.0,
+                        decibel_gram=True):
+        dat = self.__load_file(path, blocksize, overlap)
+        if kind == 'mfcc':
+            # TODO: More intelligently choose input shape (blocksize may be None)
+            input_shape=(1,blocksize)
+            # Generate keras network to get melgram
+            mfcc_model = self.__mel_spec_model(input_shape, n_mels, power_melgram, decibel_gram)
+            self.__check_model(mfcc_model)
+            # Generate keras network to get spectrogram
+            spec_model = self.__spec_model(input_shape, decibel_gram)
+            self.__check_model(spec_model)
+            
+            # Calculate melgram
+            melgram = self.__evaluate_model(mfcc_model, dat)
+            # Calculate spectrogram
+            specgram = self.__evaluate_model(spec_model, dat)
+
+            mfcc_dat = self.__mfcc_encode(melgram[0], specgram[0])
+            preproc_dat = np.array(mfcc_dat)
+            for i in range(1, specgram.shape[0]):
+                mfcc_dat = self.__mfcc_encode(melgram[i], specgram[i])
+                preproc_dat = np.vstack((preproc_dat, mfcc_dat))
+
+        elif kind == 'wavnet':
+            preproc_dat = self.__wavenet_encode(loaded_tuple[0][0])
+            for i in range(1,len(loaded_tuple[0])):
+                preproc_dat = np.vstack((preproc_dat, self.__wavenet_encode(loaded_tuple[0][i])))
+                
+        if len(preproc_dat.shape) > 1:
+            df = pd.DataFrame(preproc_dat)
+        else:
+            df = pd.DataFrame(preproc_dat[np.newaxis, :])
+        df.fillna(0, inplace=True)
+        return df
+
+
+    
     def preprocess_fold(self, data,
                         kind='mfcc',
                         fld=None,
