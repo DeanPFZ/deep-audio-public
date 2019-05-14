@@ -2,15 +2,10 @@ import pandas as pd
 from librosa import display, feature, power_to_db
 import librosa
 import numpy as np
-import multiprocessing as mp
 import time
 import pickle
 import soundfile as sf
 import os
-
-from io import StringIO
-
-from sklearn.preprocessing import normalize
 
 #Relevant Keras/Kapre includes
 import keras
@@ -23,6 +18,10 @@ from kapre.utils import Normalization2D
 # Relevant Wavenet includes
 from magenta.models.nsynth import utils
 from magenta.models.nsynth.wavenet import fastgen
+
+# sklearn
+from sklearn.model_selection import StratifiedKFold
+from sklearn.preprocessing import normalize
 
 # Lowpass Filter
 import scipy.signal as signal
@@ -246,23 +245,24 @@ class Audio_Processor:
                 tmp_y = librosa.util.frame(np.ascontiguousarray(y[i]),
                                            frame_length=blocksize,
                                            hop_length=overlap)
-                
+#                 print(tmp_y.shape)
                 out_y = np.append(out_y, tmp_y, axis=1)
+            elif samplen == 0:
+                continue
             elif samplen < blocksize:
                 diff = blocksize-samplen
                 padded = np.pad(y[i], 
                                 (int(np.ceil(diff/2)),int(np.floor(diff/2))),
                                 'edge')[:, np.newaxis]
-                
+#                 print(padded.shape)
                 out_y = np.append(out_y, padded, axis=1)
             else:
+#                 print((y[i])[:,np.newaxis].shape)
                 out_y = np.append(out_y, (y[i])[:,np.newaxis], axis=1)
         return out_y.T[1:]
     
     
-    def __load_audio(self, f_df, fld, blocksize, overlap, debug=False):
-        start_time = time.time()
-        
+    def __load_audio(self, f_df, blocksize, overlap, debug=False):
         yy = []
         for i, sample in f_df.iterrows():
             y, sr = librosa.core.load(self._audio_dir + sample.filename, sr=self._sr, mono=True)
@@ -279,9 +279,8 @@ class Audio_Processor:
         
         return yy
 
-    def __load_file(self, path, blocksize, overlap, debug=False):
-        items = []
-        y, sr = librosa.core.load(self._audio_dir + sample.filename, sr=self._sr, mono=True)
+    def __load_file(self, filename, blocksize, overlap, debug=False):
+        y, sr = librosa.core.load(self._audio_dir + filename, sr=self._sr, mono=True)
         # Lowpass filter
         y = lowpass(y)
         # Normalize
@@ -291,41 +290,19 @@ class Audio_Processor:
         # Tokenize
         y = self.__tokenize(y, blocksize, overlap)
 
-        yy = y[:, np.newaxis, :]
-        
-        mfcc_model = self.__mel_spec_model(
-            yy[0].shape,
-            n_mels,
-            power_melgram,
-            decibel_gram
-        )
-        self.__check_model(mfcc_model)
-        mel = self.__evaluate_model(mfcc_model, yy)
-        feat = self.__mfcc_encode(mel, None, None)[0]
-
-        features = pd.DataFrame(feat, columns=feat_cols)
-        features = features.replace([np.inf, -np.inf], np.nan).dropna(how='any', axis=0)
-        return features
-
-        
-                
+        return y[:, np.newaxis, :]
+               
     
-    def __preprocess_df(self, data, kind, fld, blocksize, overlap, n_mels, power_melgram, decibel_gram):
+    def __preprocess_df(self, data, kind, blocksize, overlap, n_mels, power_melgram, decibel_gram):
         dfs = []
         
-        # Load fold data or all data
-        if fld:
-            try:
-                f_df = data[data['fold'] == fld]
-            except TypeError:
-                f_df = data[data['fold'].between(fld[0], fld[-1])]
-        else:
-            f_df = data
+        # Load all data
+        f_df = data
 
         f_df.reset_index(inplace=True, drop=True)
             
         # Load the data
-        yy = self.__load_audio(f_df, fld, blocksize, overlap)
+        yy = self.__load_audio(f_df, blocksize, overlap)
 
         if kind == 'mfcc':
             mfcc_model = self.__mel_spec_model(
@@ -345,8 +322,9 @@ class Audio_Processor:
                     self.__mfcc_encode(mel),
                     columns=feat_cols
                 ).replace([np.inf, -np.inf, np.nan], 0)
-        
-            return f_df.drop(['take', 'src_file', 'esc10', 'filename'], axis=1)
+                
+            
+            return f_df[['target', 'h_target', 'metadata']]
 
         elif kind == 'wavnet':
 #             preproc_dat = self.__wavenet_encode(loaded_tuple[0])
@@ -364,37 +342,33 @@ class Audio_Processor:
         df.fillna(0, inplace=True)
         return df
 
-#     def preprocess_file(self, path,
-#                         kind='mfcc',
-#                         blocksize=44100,
-#                         overlap=None,
-#                         n_mels=128,
-#                         power_melgram=2.0,
-#                         decibel_gram=True):
-#         dat = self.__load_file(path, blocksize, overlap)
-#         if kind == 'mfcc':
-#             # TODO: More intelligently choose input shape (blocksize may be None)
-#             input_shape=(1,blocksize)
-#             # Generate keras network to get melgram
-#             mfcc_model = self.__mel_spec_model(input_shape, n_mels, power_melgram, decibel_gram)
-#             self.__check_model(mfcc_model)
-#             # Generate keras network to get spectrogram
-#             spec_model = self.__spec_model(input_shape, decibel_gram)
-#             self.__check_model(spec_model)
+    def preprocess_file(self, filename,
+                        kind='mfcc',
+                        blocksize=16000,
+                        overlap=None,
+                        n_mels=128,
+                        power_melgram=2.0,
+                        decibel_gram=True,
+                        bag_of_features=True
+                       ):
+        yy = self.__load_file(filename, blocksize, overlap)
+        if kind == 'mfcc':
+            mfcc_model = self.__mel_spec_model(
+                yy[0].shape,
+                n_mels,
+                power_melgram,
+                decibel_gram
+            )
+            self.__check_model(mfcc_model)
+            mel = self.__evaluate_model(mfcc_model, yy)
+
+            return pd.DataFrame(
+                        self.__mfcc_encode(mel),
+                        columns=feat_cols
+                   ).replace([np.inf, -np.inf, np.nan], 0)            
             
-#             # Calculate melgram
-#             melgram = self.__evaluate_model(mfcc_model, dat)
-#             # Calculate spectrogram
-#             specgram = self.__evaluate_model(spec_model, dat)
-
-#             mfcc_dat = self.__mfcc_encode(melgram[0], specgram[0])
-#             preproc_dat = np.array(mfcc_dat)
-#             for i in range(1, specgram.shape[0]):
-#                 mfcc_dat = self.__mfcc_encode(melgram[i], specgram[i])
-#                 preproc_dat = np.vstack((preproc_dat, mfcc_dat))
-
 #         elif kind == 'wavnet':
-#             preproc_dat = self.__wavenet_encode(loaded_tuple[0][0])
+#             preproc_dat = self.__wavenet_encode(yy)
 #             for i in range(1,len(loaded_tuple[0])):
 #                 preproc_dat = np.vstack((preproc_dat, self.__wavenet_encode(loaded_tuple[0][i])))
                 
@@ -409,35 +383,38 @@ class Audio_Processor:
     
     def preprocess_fold(self, data,
                         kind='mfcc',
-                        fld=None,
-                        blocksize=44100,
+                        blocksize=16000,
                         overlap=None,
                         n_mels=128,
                         power_melgram=2.0,
                         decibel_gram=True,
-                        feature_bag=True
+                        feature_bag=True,
+                        folds=None,
+                        random_state=None
                        ):
         try:
-            if fld:
-                df = self.load_obj('fold_' + str(fld) + '_' + str(kind) + '_' + str(blocksize) + '_' + str(overlap) + 'sr' + str(self._sr))
-            else:
-                df = self.load_obj(str(kind) + '_' + str(blocksize) + '_' + str(overlap) + 'sr' + str(self._sr))  
+            df = self.load_obj(str(kind) + '_' + str(blocksize) + '_' + str(overlap) + 'sr' + str(self._sr))  
         except IOError:
             print("Preprocess file not found, building new one")
             start_time = time.time()
-            df = self.__preprocess_df(data, kind, fld, blocksize, overlap, n_mels, power_melgram, decibel_gram)
+            df = self.__preprocess_df(data, kind, blocksize, overlap, n_mels, power_melgram, decibel_gram)
             print("\tBytes: " + str(df.memory_usage(index=True).sum()))
             print("\tProcessing Time: " + str(time.time() - start_time))
-            if fld:
-                self.save_obj(df, 'fold_' + str(fld) + '_' + str(kind) + '_' + str(blocksize) + '_' + str(overlap) + 'sr' + str(self._sr))
-            else:
-                self.save_obj(df, str(kind) + '_' + str(blocksize) + '_' + str(overlap) + 'sr' + str(self._sr))  
+            self.save_obj(df, str(kind) + '_' + str(blocksize) + '_' + str(overlap) + 'sr' + str(self._sr))  
         
         if feature_bag:
-            return self.bag_of_features(df)
-        else:
-            return df
-    
+            df = self.bag_of_features(df)
+
+        if folds:
+            skf = StratifiedKFold(n_splits=folds, shuffle=True, random_state=random_state)
+            df['fold']=None
+            i = 1
+            for train_index, test_index in skf.split(df, np.zeros(len(df))):
+                df.at[test_index, 'fold'] = i
+                i += 1
+            
+        return df
+            
     def bag_of_features(self, df):
         combined = []
         for i in range(0, len(df)):
@@ -447,5 +424,4 @@ class Audio_Processor:
         combined = pd.DataFrame(np.array(combined), columns=feat_cols)
         combined['h_target'] = df['h_target']
         combined['target'] = df['target']
-        combined['fold'] = df['fold']
         return combined
