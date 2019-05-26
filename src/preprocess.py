@@ -26,7 +26,6 @@ from sklearn.preprocessing import normalize
 # Lowpass Filter
 import scipy.signal as signal
 
-
 feat_cols = [
             'mfcc_2_std', 'mfcc_2_mean', 'mfcc_2_noise',
             'mfcc_3_std', 'mfcc_3_mean', 'mfcc_3_noise',
@@ -388,6 +387,7 @@ class Audio_Processor:
                         n_mels=128,
                         power_melgram=2.0,
                         decibel_gram=True,
+                        balance=None,
                         feature_bag=True,
                         folds=None,
                         random_state=None
@@ -402,9 +402,6 @@ class Audio_Processor:
             print("\tProcessing Time: " + str(time.time() - start_time))
             self.save_obj(df, str(kind) + '_' + str(blocksize) + '_' + str(overlap) + 'sr' + str(self._sr))  
         
-        if feature_bag:
-            df = self.bag_of_features(df)
-
         if folds:
             skf = StratifiedKFold(n_splits=folds, shuffle=True, random_state=random_state)
             df['fold']=None
@@ -412,10 +409,27 @@ class Audio_Processor:
             for train_index, test_index in skf.split(df, np.zeros(len(df))):
                 df.at[test_index, 'fold'] = i
                 i += 1
+        
+        if feature_bag:
+            df = self.bag_of_features(df)
+        else:
+            df = self.single_vector(df)
             
         return df
             
     def bag_of_features(self, df):
+        combined = []
+        for i in range(0, len(df)):
+            ddf = df.at[i, 'metadata']
+            ddf['h_target'] = df.at[i,'h_target']
+            ddf['target'] = df.at[i,'target']
+            if 'fold' in df.columns:
+                ddf['fold'] = df.at[i,'fold']
+            combined.append(ddf)
+
+        return pd.concat(combined, ignore_index=True)
+            
+    def single_vector(self, df):
         combined = []
         for i in range(0, len(df)):
             ddf = df.at[i, 'metadata']
@@ -424,4 +438,6 @@ class Audio_Processor:
         combined = pd.DataFrame(np.array(combined), columns=feat_cols)
         combined['h_target'] = df['h_target']
         combined['target'] = df['target']
+        combined['fold']=df['fold']
         return combined
+                

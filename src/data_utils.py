@@ -57,7 +57,7 @@ def normalize_data(df, target, scalar=None):
 # Supersample of data with equal distribution
 def balanced_supersample(x,y):
     y_out = pd.DataFrame(y.values)
-    x_out = pd.DataFrame(x.values)
+    x_out = pd.DataFrame(x)
     counts = y.value_counts()
     counts -= counts.iloc[0]
     for item in counts.iteritems():
