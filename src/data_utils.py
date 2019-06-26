@@ -56,9 +56,11 @@ def normalize_data(df, target, scalar=None):
 
 # Supersample of data with equal distribution
 def balanced_supersample(x,y):
+    y = pd.Series(y)
+    x = pd.DataFrame(x)
     y_out = pd.DataFrame(y.values)
     x_out = pd.DataFrame(x)
-    counts = y.value_counts()
+    counts = pd.Series(y).value_counts()
     counts -= counts.iloc[0]
     for item in counts.iteritems():
         if item[1] == 0:
@@ -67,13 +69,15 @@ def balanced_supersample(x,y):
             samples = y[y == item[0]].sample(-1 * item[1], replace=True)
             y_out = pd.concat([y_out, samples], ignore_index=True)
             x_out = pd.concat([x_out, x.loc[samples.index]], ignore_index=True)
-    return x_out, y_out
+    return x_out, y_out.squeeze()
     
 # Subsample of data with equal distribution
 def balanced_subsample(x,y):
+    y = pd.Series(y)
+    x = pd.DataFrame(x)
     y_out = pd.DataFrame()
     x_out = pd.DataFrame()
-    counts = y.value_counts(ascending=True)
+    counts = pd.Series(y).value_counts(ascending=True)
     min_count = counts.iloc[0]
     for item in counts.iteritems():
         if item[1] == min_count:
@@ -83,5 +87,5 @@ def balanced_subsample(x,y):
             samples = y[y == item[0]].sample(min_count)
             y_out = pd.concat([y_out, samples], ignore_index=True)
             x_out = pd.concat([x_out, x.loc[samples.index]], ignore_index=True)
-    return x_out, y_out
+    return x_out, y_out.squeeze()
             
