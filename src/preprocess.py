@@ -21,7 +21,8 @@ from magenta.models.nsynth.wavenet import fastgen
 
 # sklearn
 from sklearn.model_selection import StratifiedKFold
-from sklearn.preprocessing import normalize
+from sklearn.preprocessing import normalize, scale
+from sklearn.cluster import MiniBatchKMeans
 
 # Lowpass Filter
 import scipy.signal as signal
@@ -360,6 +361,58 @@ class Audio_Processor:
         df.fillna(0, inplace=True)
         return df
 
+    def get_mfccs(self, data, blocksize, overlap, n_mels, power_melgram, decibel_gram):
+        dfs = []
+        
+        # Load all data
+        f_df = data
+
+        f_df.reset_index(inplace=True, drop=True)
+            
+        # Load the data
+        yy = self.load_audio(f_df, blocksize, overlap)
+        
+        if self._debug:
+            print(yy[0])
+
+        self._mfcc_model = self.__mel_spec_model(
+            yy[0][0].shape,
+            n_mels,
+            power_melgram,
+            decibel_gram
+        )
+        self.__check_model(self._mfcc_model)
+        mels = []
+        for i in range(0, len(yy)):
+            mels.append(self.__evaluate_model(self._mfcc_model, yy[i]))
+
+        f_df['mfcc'] = None
+        if self._debug:
+            print("Mels Length: " + str(len(mels)))
+        for (i, mel) in enumerate(mels):
+            mfccs = []
+            for (j, S_j) in enumerate(mel):
+                mfccs.append(librosa.feature.mfcc(S=librosa.power_to_db(S_j), n_mfcc=13))
+            mfccs = np.hstack(mfccs)
+            f_df.at[i,'mfcc'] = pd.DataFrame(mfccs.T).replace([np.inf, -np.inf, np.nan], 0)
+
+        return f_df[['mfcc']]
+    
+    def quantize_mfccs(self, df, n_clusters=2048):
+        scaled = df.apply(scale, raw=True)
+        mbk = MiniBatchKMeans(n_clusters=n_clusters,
+                              batch_size=n_clusters * 20,
+                              max_no_improvement=20,
+                              reassignment_ratio=.0001,
+                              random_state=42,
+                              verbose=True)
+        mbk.fit(scaled)
+        scaled['label'] = mbk.labels_.tolist()
+        sounds = scaled.groupby(level=0)
+        acoustic = pd.DataFrame({_id: s.groupby('label').size()
+                                for _id, s in sounds}).transpose()
+        return acoustic.fillna(0).to_sparse(fill_value=0)
+    
     def preprocess_file(self, filename,
                         kind='mfcc',
                         blocksize=16000,

@@ -39,7 +39,7 @@ def load_audio_blockwise(data, blocksize=1024, overlap=512, debug=False):
             y = y[:int(blocksize)]
             y = y[np.newaxis, :]
             items.append(y)
-            h_target.append(sample.h_category)
+            h_target.append(sample.h_target)
             target.append(sample.target)
         if debug:
             print("Done")
@@ -71,4 +71,4 @@ def load_file_blockwise(filename, blocksize=1024, overlap=512, debug=False):
     if debug:
         print("Done")
 
-    return items
+    return np.array(items)
