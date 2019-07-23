@@ -6,7 +6,7 @@ from keras.layers import Dense, Dropout
 from keras.models import Sequential
 from keras.wrappers.scikit_learn import KerasClassifier
 
-class CNN_Multilayer(BaseEstimator, ClassifierMixin):
+class DNN_Multilayer(BaseEstimator, ClassifierMixin):
     def __init__(self, epochs=50, batch_size=35, validation_split=0.05,
                        a_epochs=50, a_batch_size=25,
                        i_epochs=50, i_batch_size=25,
@@ -123,90 +123,51 @@ class CNN_Multilayer(BaseEstimator, ClassifierMixin):
     def deep_net(self, feature_count):
         # Create Model
         model = Sequential()
-        model.add(Melspectrogram(
-            sr=SR,
-            n_mels=128,
-            power_melgram=1.0,
-            input_shape=(1, blocksize),
-            trainable_fb=False,
-            fmin = 800,
-            fmax = 8000
-        ))
-        model.add(Convolution2D(32, 9, 9, name='conv1', activation='relu'))
-        model.add(MaxPooling2D((25, 17)))
-        model.add(Flatten())
-        model.add(Dense(32, activation='relu'))
-        model.add(Dense(32, activation='relu'))
+        model.add(Dense(128, activation='relu', input_shape=(feature_count,)))
         model.add(Dropout(0.2))
-        model.add(Dense(32, activation='relu'))
-        model.add(Dense(32, activation='relu'))
+        model.add(Dense(128, activation='relu'))
         model.add(Dropout(0.2))
-        model.add(Dense(1, kernel_initializer='normal', activation='softmax'))
+        model.add(Dense(int(128/2), activation='relu'))
+        model.add(Dense(int(128/2), activation='relu'))
+        model.add(Dropout(0.2))
+        model.add(Dense(int(128/2), activation='relu'))
+        model.add(Dropout(0.2))
+        model.add(Dense(1, activation='softmax'))
 
         # Compile model
         model.compile(loss='binary_crossentropy',
-                      optimizer='adam',
+                      optimizer='rmsprop',
                       metrics=['accuracy'])
-
-        model.summary()
 
 
         return model
 
-    def deep_net_a():
-        # Create Model
-        # Create Model
+    def deep_net_a(self, feature_count):
         model = Sequential()
-        model.add(Melspectrogram(
-            sr=SR,
-            n_mels=128,
-            power_melgram=1.0,
-            input_shape=(1, blocksize),
-            trainable_fb=False,
-            fmin = 800,
-            fmax = 8000
-        ))
-        model.add(Convolution2D(32, 9, 9, name='conv1', activation='relu'))
-        model.add(MaxPooling2D((25, 17)))
-        model.add(Flatten())
-        model.add(Dense(32, activation='relu'))
-        model.add(Dense(32, activation='relu'))
+        model.add(Dense(128, activation='relu', input_shape=(feature_count,)))
+        model.add(Dense(128, activation='relu'))
+        model.add(Dense(int(128/2), activation='relu'))
         model.add(Dropout(0.2))
-        model.add(Dense(32, activation='relu'))
-        model.add(Dense(32, activation='relu'))
+        model.add(Dense(int(128/2), activation='relu'))
+        model.add(Dense(int(128/2), activation='relu'))
         model.add(Dropout(0.2))
         model.add(Dense(18, kernel_initializer='normal', activation='softmax'))
 
         # Compile model
         model.compile(loss='categorical_crossentropy',
                       optimizer='adam',
-                      metrics=['accuracy', kmet.mae])
-
-        model.summary()
-
+                      metrics=['accuracy'])
 
         return model
 
-    def deep_net_i():
-        # Create Model
+    def deep_net_i(self, feature_count):
         model = Sequential()
-        model.add(Melspectrogram(
-            sr=SR,
-            n_mels=128,
-            power_melgram=1.0,
-            input_shape=(1, blocksize),
-            trainable_fb=False,
-            fmin = 800,
-            fmax = 8000
-        ))
-        model.add(Convolution2D(32, 9, 9, name='conv1', activation='relu'))
-        model.add(MaxPooling2D((25, 17)))
-        model.add(Flatten())
-        model.add(Dense(32, activation='relu'))
-        model.add(Dense(32, activation='relu'))
+        model.add(Dense(128, activation='relu', input_shape=(feature_count,)))
+        model.add(Dense(128, activation='relu'))
+        model.add(Dense(int(128/2), activation='relu'))
         model.add(Dropout(0.2))
-        model.add(Dense(32, activation='relu'))
-        model.add(Dense(32, activation='relu'))
+        model.add(Dense(int(128/2), activation='relu'))
+        model.add(Dense(int(128/2), activation='relu'))
         model.add(Dropout(0.2))
         model.add(Dense(32, kernel_initializer='normal', activation='softmax'))
 
@@ -214,8 +175,5 @@ class CNN_Multilayer(BaseEstimator, ClassifierMixin):
         model.compile(loss='categorical_crossentropy',
                       optimizer='adam',
                       metrics=['accuracy'])
-
-        model.summary()
-
 
         return model

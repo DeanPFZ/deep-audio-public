@@ -30,8 +30,6 @@ class CNN_Multilayer(BaseEstimator, ClassifierMixin):
         X = np.array(X)
         y = np.array(y)
         
-#         print(X.shape)
-        
         dims = X.shape[1]
         t_y = y[:,0]
         a_y = y[:,1][t_y == 0]
@@ -74,23 +72,11 @@ class CNN_Multilayer(BaseEstimator, ClassifierMixin):
         predictions=[]
         
         for x in X:
-            prob = self.clf.predict_proba(x, verbose=0).squeeze()
-#             print(prob)
-            if prob[0] > 0.75:
+            prob = self.clf.predict(x, verbose=0).squeeze()
+            if prob == 0:
                 pred = self.a_clf.predict(x, verbose=0).squeeze()
-            elif prob[1] > 0.75:
+            elif prob == 1:
                 pred = self.i_clf.predict(x, verbose=0).squeeze()
-            else:
-                a_pred = self.a_clf.predict(x, verbose=0).squeeze()
-                i_pred = self.i_clf.predict(x, verbose=0).squeeze()
-                
-                a_prob = self.a_clf.predict_proba(x, verbose=0).squeeze() * prob[0]
-                i_prob = self.i_clf.predict_proba(x, verbose=0).squeeze() * prob[1]
-                
-                if(np.max(a_prob) > np.max(i_prob)):
-                    pred = a_pred
-                else:
-                    pred = i_pred
                     
             predictions.append(pred)
         
@@ -99,14 +85,10 @@ class CNN_Multilayer(BaseEstimator, ClassifierMixin):
     def predict_proba(self, X, y=None):
         
         prob = self.clf.predict_proba(X, verbose=0).squeeze()
-#         print(prob)
 
         prob_a = np.multiply(self.a_clf.predict_proba(X, verbose=0).squeeze(),prob[0])
-#         print(prob_a)
 
         prob_i = np.multiply(self.i_clf.predict_proba(X, verbose=0).squeeze(),prob[1])
-#         print(prob_i)
-#         print()
         
         probs = [None] * 50
         for counter, j in enumerate(self.a_clf.classes_):
@@ -172,7 +154,7 @@ class CNN_Multilayer(BaseEstimator, ClassifierMixin):
         model.add(Dense(32, activation='relu'))
         model.add(Dense(32, activation='relu'))
         model.add(Dropout(0.2))
-        model.add(Dense(19, kernel_initializer='normal', activation='softmax'))
+        model.add(Dense(18, kernel_initializer='normal', activation='softmax'))
 
         # Compile model
         model.compile(loss='categorical_crossentropy',
@@ -202,7 +184,7 @@ class CNN_Multilayer(BaseEstimator, ClassifierMixin):
         model.add(Dense(32, activation='relu'))
         model.add(Dense(32, activation='relu'))
         model.add(Dropout(0.2))
-        model.add(Dense(31, kernel_initializer='normal', activation='softmax'))
+        model.add(Dense(32, kernel_initializer='normal', activation='softmax'))
 
         # Compile model
         model.compile(loss='categorical_crossentropy',
