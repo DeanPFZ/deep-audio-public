@@ -15,11 +15,11 @@ class CNN_Multilayer(BaseEstimator, ClassifierMixin):
     def __init__(self, epochs=50, batch_size=128, validation_split=0.05,
                        a_epochs=50, a_batch_size=128,
                        i_epochs=50, i_batch_size=128,
-                       verbose=1):
+                       verbose=1, threshold=0.75):
         
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         values.pop("self")
-
+        
         for arg, val in values.items():
             setattr(self, arg, val)
             pass
@@ -72,11 +72,22 @@ class CNN_Multilayer(BaseEstimator, ClassifierMixin):
         predictions=[]
         
         for x in X:
-            prob = self.clf.predict(x, verbose=0).squeeze()
-            if prob == 0:
+            prob = self.clf.predict_proba(x, verbose=0).squeeze()
+            if prob[0] > self.threshold:
                 pred = self.a_clf.predict(x, verbose=0).squeeze()
-            elif prob == 1:
+            elif prob[1] > self.threshold:
                 pred = self.i_clf.predict(x, verbose=0).squeeze()
+            else:
+                a_pred = self.a_clf.predict(x, verbose=0).squeeze()
+                i_pred = self.i_clf.predict(x, verbose=0).squeeze()
+                
+                a_prob = self.a_clf.predict_proba(x, verbose=0).squeeze() * prob[0]
+                i_prob = self.i_clf.predict_proba(x, verbose=0).squeeze() * prob[1]
+                
+                if(np.max(a_prob) > np.max(i_prob)):
+                    pred = a_pred
+                else:
+                    pred = i_pred
                     
             predictions.append(pred)
         

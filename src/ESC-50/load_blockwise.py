@@ -15,7 +15,7 @@ import librosa
 import numpy as np
 import soundfile as sf
 
-def load_audio_blockwise(data, blocksize=1024, overlap=512, debug=False):
+def load_audio_blockwise(data, blocksize, overlap, debug=False):
     start_time = time.time()
     items = []
     target = []
@@ -47,7 +47,7 @@ def load_audio_blockwise(data, blocksize=1024, overlap=512, debug=False):
         print("\tProcessing Time: " + str(time.time() - start_time))
     return np.vstack(items), np.array(h_target), np.array(target)
 
-def load_file_blockwise(filename, blocksize=1024, overlap=512, debug=False):
+def load_file_blockwise(filename, blocksize, overlap, debug=False):
     items = []
     if debug:
         print("File Processing", end="", flush=True)
@@ -71,4 +71,4 @@ def load_file_blockwise(filename, blocksize=1024, overlap=512, debug=False):
     if debug:
         print("Done")
 
-    return np.array(items)
+    return items

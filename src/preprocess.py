@@ -75,10 +75,10 @@ feat_cols = [
 
 
 
-def lowpass(y, N=3, Wn=0.5):
-    # First, design the Buterworth filter
-    N  = 3    # Filter order
-    Wn = 0.5 # Cutoff frequency
+def lowpass(y, N=3,low_pass_freq,sr):
+    #for digital filters low-pass frequency in rads is given by lowpass/(sr/2)
+    Wn = (2*low_pass_freq)/sr
+    # First, design the Buterworth 
     B, A = signal.butter(N, Wn, output='ba')
     return signal.filtfilt(B,A, y)
    
@@ -345,21 +345,20 @@ class Audio_Processor:
             
             return f_df[['target', 'h_target', 'metadata']]
 
-        elif kind == 'wavnet':
-#             preproc_dat = self.__wavenet_encode(loaded_tuple[0])
-            preproc_dat = self.__wavenet_encode(loaded_tuple[0][0])
-            for i in range(1,len(loaded_tuple[0])):
-                preproc_dat = np.vstack((preproc_dat, self.__wavenet_encode(loaded_tuple[0][i])))
-            
-        # Stack the data with labels
-        preproc_dat = np.hstack((preproc_dat, l_target, h_target))
-
-        df = pd.DataFrame(preproc_dat)
-        df.rename(columns=dict(zip(df.columns[-2:], ['target', 'h_target'])), inplace=True)
-        df['target'] = df['target'].astype(int)
-        df['h_target'] = df['h_target'].astype(int)
-        df.fillna(0, inplace=True)
-        return df
+        elif kind == 'quantized':
+            df = self.get_mfccs(data,
+                  blocksize=blocksize, 
+                  overlap=overlap,
+                  n_mels=n_mels,
+                  power_melgram=power_melgram,
+                  decibel_gram=decibel_gram
+                 )
+            mfcc = pd.concat(df['mfcc'].values, keys=list(range(len(df))))
+            quant = self.quantize_mfccs(mfcc)
+            df = pd.DataFrame(quant)
+            y_l = pd.Series(data['target'])
+            df['target'] = y_l
+            return df
 
     def get_mfccs(self, data, blocksize, overlap, n_mels, power_melgram, decibel_gram):
         dfs = []
@@ -456,7 +455,7 @@ class Audio_Processor:
                         random_state=None
                        ):
         try:
-            df = self.load_obj(str(kind) + '_' + str(blocksize) + '_' + str(overlap) + 'sr' + str(self._sr))  
+            df = self.load_obj(str(kind) + '_' + str(blocksize) + '_' + str(overlap) + 'sr' + str(self._sr))
         except IOError:
             print("Preprocess file not found, building new one")
             start_time = time.time()
