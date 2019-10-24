@@ -1,3 +1,4 @@
 {
-    "python.condaPath": "~/miniconda3/envs/deep-audio"
+    "python.condaPath": "~/miniconda3/envs/deep-audio",
+    "python.pythonPath": "/nethome/plogas3/miniconda3/envs/deep-audio/bin/python"
 }
