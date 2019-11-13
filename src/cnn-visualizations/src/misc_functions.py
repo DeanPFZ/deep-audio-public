@@ -229,6 +229,7 @@ def get_example_params(example_index):
         pretrained_model(Pytorch model): Model to use for the operations
     """
     # Pick one of the examples
+    print("ddd")
     example_list = (('../input_images/snake.jpg', 56),
                     ('../input_images/cat_dog.png', 243),
                     ('../input_images/spider.png', 72))
@@ -240,9 +241,8 @@ def get_example_params(example_index):
     # Process image
     prep_img = preprocess_image(original_image)
     # Define model
-    pretrained_model = models.alexnet(pretrained=True)
+#     pretrained_model = models.alexnet(pretrained=True)
     return (original_image,
             prep_img,
             target_class,
-            file_name_to_export,
-            pretrained_model)
+            file_name_to_export)
