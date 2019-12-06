@@ -5,7 +5,7 @@
 
 %% load file in individual file directory
 clear all; close all;
-parent_dir = 'G:\DDL_Project\src\ESC-50\class_audio'; 
+parent_dir = 'G:\DDL_Project\src\ESC-50\class_mat'; 
 base = dir(parent_dir);
 tot_levels = 5;
 for i = 3:length(base)
@@ -33,12 +33,13 @@ for i = 3:length(base)
             end 
             fprintf("LPC feature extraction complete \n");
             file_features = horzcat(wpt_features,coeff,local_lpc);
+            file_mfcc_features = mean(coeff,1);
             file_features = mean(file_features,1);
             feature_class = [feature_class;file_features];
             fprintf("Feature extracted for %d file of class %d \n",j,i);
             feature_file_name = fullfile(parent_dir,base(i).name,local_files(j).name);
             feature_file_name = feature_file_name(1:end-4);
-            save(feature_file_name,'file_features','label');
+            save(feature_file_name,'file_features','file_mfcc_features','label');
         end 
     end 
     global_features{i} = feature_class;
